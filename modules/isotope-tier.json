@@ -1,0 +1,41 @@
+{
+  "schema": "irreality.module/1",
+  "id": "isotope-tier",
+  "kind": "module",
+  "name": "Изотопный Ярус",
+  "namespace": "iso",
+  "version": "1.0.0",
+  "author": "Модуль сеттинга",
+  "description": "Модуль брони, патронов и оружия: аблятивный композит «Саркофаг» и линейка ядерных боеприпасов — гиперзвуковой вольфрам, термобар, кавитационная игла, ЭМИ-разрядник и разрывная плазма.",
+  "requires": ["irreality-core"],
+  "rules": [
+    { "id": "ablativeReduction", "label": "«Саркофаг»: снижение Усугублённого", "hint": "На сколько пунктов композит гасит Усугублённый урон.", "type": "number", "default": 2, "min": 0, "max": 6 },
+    { "id": "ablativeMin", "label": "«Саркофаг»: минимум урона", "hint": "Ниже этого значения урон не снижается (если он вообще был).", "type": "number", "default": 1, "min": 0, "max": 3 },
+    { "id": "sacrificialWear", "label": "Жертвенный слой", "hint": "Сколько Целостности броня теряет дополнительно за обстрел ядерным патроном.", "type": "number", "default": 4, "min": 0, "max": 10 },
+    { "id": "nuclearOnly", "label": "Аблятивная защита только против ядерных", "hint": "Выкл — композит снижает любой Усугублённый урон.", "type": "toggle", "default": true }
+  ],
+  "carrierExtensions": [
+    { "target": "core:heavy", "addPlates": ["sarcophagus"] }
+  ],
+  "plates": [
+    {
+      "id": "sarcophagus", "code": "АК", "name": "Аблятивный композит «Саркофаг»",
+      "defense": 6, "integrity": 12, "breakPenalty": 4,
+      "passive": { "text": "−2 к успехам на все проверки Ловкости и Реакции", "mods": { "agilitySuccesses": -2 } },
+      "effects": [
+        { "type": "reduceDamage", "damageType": "aggravated", "amount": 2, "min": 1, "rule": "iso:ablativeReduction", "minRule": "iso:ablativeMin", "when": { "ammoTag": "nuclear" }, "label": "Аблятивное рассеивание" },
+        { "type": "extraWear", "amount": 4, "rule": "iso:sacrificialWear", "when": { "ammoTag": "nuclear" }, "label": "Жертвенный слой" },
+        { "type": "note", "text": "Бег или активная драка дольше 2 раундов: проверка Выносливости (Сложность 7), иначе 1 Поверхностный урон от перегрева и удушья.", "when": {} }
+      ],
+      "brokenNote": "Сломанный «Саркофаг» фонит: носитель получает 1 Поверхностный урон в час.",
+      "notes": "Округление не задано в источнике — применяется правило ядра. Чудовищный вес и громоздкость."
+    }
+  ],
+  "ammo": [
+    { "id": "tungsten", "code": "ВОЛЬФРАМ", "name": "Гиперзвуковой вольфрам", "damageType": "aggravated", "armorPierce": 1, "tags": ["nuclear"], "description": "Стандарт Яруса. Базовый урон — Усугублённый. Игнорирует 1 пункт Защиты брони, создаёт гигантскую кавитационную полость." },
+    { "id": "thermo", "code": "ТЕРМОБАР", "name": "Термобарический микрозаряд", "damageType": "aggravated", "fixedDamage": { "aggravated": 2, "surface": 3 }, "surfaceBypass": true, "tags": ["nuclear"], "description": "Урон: 2 Усугублённых + 3 Поверхностных. Поверхностный идёт и в Целостность брони, и в Здоровье (шоковая волна). При попадании — микровзрыв плазмы." },
+    { "id": "needle", "code": "ИГЛА", "name": "Кавитационная игла", "damageType": "aggravated", "armorPierce": 2, "tags": ["nuclear"], "description": "Снайперская. Базовый урон — Усугублённый. Игнорирует 2 пункта Защиты: волна дробит кости внутри тела." },
+    { "id": "emp", "code": "ЭМИ", "name": "ЭМИ-разрядник", "damageType": "surface", "fixedDamage": { "surface": 1 }, "tags": ["nonlethal"], "effects": [ { "type": "zeroIntegrity", "target": "киберимпланты и электронная броня", "label": "ЭМИ-разряд" }, { "type": "note", "text": "Отключает «Око Бога» на 1d3 раунда.", "when": {} } ], "description": "Нелетальный. Урон: 1 Поверхностный. Мгновенно обнуляет Целостность любого киберимпланта или электронной брони." },
+    { "id": "plasma", "code": "ПЛАЗМА", "name": "Разрывная плазма", "damageType": "aggravated", "fixedDamage": { "aggravated": 2 }, "ignoreWearDivision": true, "tags": ["nuclear", "shot"], "description": "Ядерная дробь. Урон: 2 Усугублённых на близкой дистанции. Поглощённый урон не делится пополам — мгновенно выжигает защитные пластины." }
+  ]
+}

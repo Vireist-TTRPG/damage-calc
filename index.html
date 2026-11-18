@@ -1,1581 +1,457 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ОГНЕСТРЕЛ · Калькулятор урона — Зона-137</title>
-  <meta name="description" content="Калькулятор урона огнестрела для НРИ «Полифония · Изотопный Ярус»: успехи атаки → урон в здоровье, износ бронепластин, полный журнал вычислений.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%230c120c'/%3E%3Cg fill='%23a6ff3d'%3E%3Cpath d='M50 50 L30 15.4 A40 40 0 0 1 70 15.4 Z'/%3E%3Cpath d='M50 50 L30 15.4 A40 40 0 0 1 70 15.4 Z' transform='rotate(120 50 50)'/%3E%3Cpath d='M50 50 L30 15.4 A40 40 0 0 1 70 15.4 Z' transform='rotate(240 50 50)'/%3E%3C/g%3E%3Ccircle cx='50' cy='50' r='15' fill='%230c120c'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%23a6ff3d'/%3E%3C/svg%3E">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Irreality · Калькулятор огнестрельного урона</title>
+  <meta name="description" content="Сеттингонезависимый калькулятор урона для НРИ Irreality: успехи атаки, бронепластины, патроны, поглощение, износ Целостности и полный журнал вычислений. Модули сеттингов подключаются JSON-манифестами.">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23120a0d'/%3E%3Ccircle cx='32' cy='32' r='19' fill='none' stroke='%23b0343d' stroke-width='4'/%3E%3Cpath d='M32 5v14M32 45v14M5 32h14M45 32h14' stroke='%23e0454f' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%23590016' stroke='%23ff6b70' stroke-width='3'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <style>
-    /* ============ БАЗА / ПАЛИТРА ============ */
-    :root{
-      --bg0:#070b07; --bg1:#0c120c; --surf:#111a11; --surf2:#162116; --surf3:#0d140d;
-      --line:#243524; --line2:#33482f;
-      --acid:#a6ff3d; --acid-dim:#6fae2c; --acid-deep:#2c4a14;
-      --amber:#ffb224; --red:#ff4b3e; --cyan:#3fd6ff; --violet:#b78cff;
-      --bone:#ece7d9; --mut:#93a591; --mut2:#5f7360;
-      --disp:'Russo One', 'Arial Black', sans-serif;
-      --body:'Inter', system-ui, sans-serif;
-      --mono:'JetBrains Mono', 'Consolas', monospace;
-      --head-h:64px;
-    }
-    *{margin:0;padding:0;box-sizing:border-box}
-    html{scroll-behavior:smooth}
-    @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} }
-    body{
-      background:var(--bg0); color:var(--bone); font-family:var(--body);
-      font-size:15px; line-height:1.5; overflow-x:hidden; min-height:100vh;
-    }
-    ::selection{background:var(--acid-deep); color:var(--acid)}
-    :focus-visible{outline:2px solid var(--acid); outline-offset:2px; border-radius:4px}
-    button{font-family:inherit; color:inherit; background:none; border:none; cursor:pointer}
-    button:disabled{cursor:not-allowed}
-    input{font-family:inherit}
-    section{scroll-margin-top:calc(var(--head-h) + 22px)}
-
-    /* Скроллбары в стиле прибора */
-    ::-webkit-scrollbar{width:10px;height:10px}
-    ::-webkit-scrollbar-track{background:var(--bg1);border-left:1px solid var(--line)}
-    ::-webkit-scrollbar-thumb{background:linear-gradient(180deg,var(--acid-dim),#3f6b1c);border:2px solid var(--bg1);border-radius:6px}
-    ::-webkit-scrollbar-thumb:hover{background:var(--acid)}
-    ::-webkit-scrollbar-corner{background:var(--bg1)}
-    *{scrollbar-width:thin;scrollbar-color:var(--acid-dim) var(--bg1)}
-
-    /* ============ ФОНОВЫЕ СЛОИ ============ */
-    .bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
-    .bg .glow{position:absolute;border-radius:50%;filter:blur(10px)}
-    .bg .g1{width:900px;height:700px;left:-260px;top:-220px;background:radial-gradient(circle,rgba(166,255,61,.13),transparent 65%)}
-    .bg .g2{width:800px;height:700px;right:-280px;bottom:-260px;background:radial-gradient(circle,rgba(255,178,36,.09),transparent 65%)}
-    .bg .g3{width:700px;height:600px;right:6%;top:22%;background:radial-gradient(circle,rgba(63,214,255,.07),transparent 65%)}
-    .bg .gridlines{position:absolute;inset:0;
-      background-image:linear-gradient(rgba(166,255,61,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(166,255,61,.045) 1px,transparent 1px);
-      background-size:44px 44px;
-      mask-image:radial-gradient(ellipse at 30% 10%,#000 20%,transparent 75%);
-      -webkit-mask-image:radial-gradient(ellipse at 30% 10%,#000 20%,transparent 75%);
-    }
-    .bg .scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.5) 3px 4px);opacity:.07}
-    .bg .grain{position:absolute;inset:0;opacity:.06;mix-blend-mode:overlay;
-      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");}
-    #motes{position:absolute;inset:0}
-    #motes span{position:absolute;bottom:-6vh;border-radius:50%;filter:blur(.6px);animation:drift linear infinite}
-    @keyframes drift{
-      0%{transform:translateY(0) translateX(0);opacity:0}
-      8%{opacity:.55}
-      85%{opacity:.35}
-      100%{transform:translateY(-114vh) translateX(28px);opacity:0}
-    }
-
-    /* ============ ШАПКА ============ */
-    header{
-      position:fixed;top:0;left:0;right:0;height:var(--head-h);z-index:50;
-      display:flex;align-items:center;gap:18px;padding:0 20px;
-      background:linear-gradient(180deg,rgba(12,18,12,.96),rgba(12,18,12,.88));
-      backdrop-filter:blur(8px);border-bottom:1px solid var(--line);
-      animation:dropIn .5s ease both;
-    }
-    @keyframes dropIn{from{transform:translateY(-100%)}to{transform:translateY(0)}}
-    header::after{content:'';position:absolute;left:0;right:0;bottom:-5px;height:5px;
-      background:repeating-linear-gradient(-45deg,var(--amber) 0 9px,#101010 9px 18px);opacity:.5}
-    .brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--bone);min-width:0}
-    .brand svg{width:32px;height:32px;color:var(--acid);flex:none;animation:spin 60s linear infinite;filter:drop-shadow(0 0 6px rgba(166,255,61,.5))}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    .brand-t{display:flex;flex-direction:column;line-height:1.15;min-width:0}
-    .brand-t b{font-family:var(--disp);font-weight:400;font-size:14px;letter-spacing:1.5px;color:var(--acid);white-space:nowrap}
-    .brand-t small{font-family:var(--mono);font-size:9.5px;letter-spacing:1px;color:var(--mut);white-space:nowrap}
-    nav{display:flex;gap:4px;margin-left:auto}
-    nav a{
-      font-family:var(--mono);font-size:11.5px;letter-spacing:1.2px;text-transform:uppercase;
-      color:var(--mut);text-decoration:none;padding:8px 13px;border:1px solid transparent;border-radius:8px;
-      transition:color .2s,border-color .2s,background .2s;
-    }
-    nav a:hover{color:var(--bone);border-color:var(--line2)}
-    nav a.active{color:var(--acid);border-color:var(--acid-dim);background:rgba(166,255,61,.07)}
-    .top-actions{display:flex;gap:8px;align-items:center}
-    .tbtn{
-      display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:8px;
-      border:1px solid var(--line2);background:var(--surf3);
-      font-family:var(--mono);font-size:11px;letter-spacing:1px;color:var(--mut);
-      transition:border-color .2s,color .2s,box-shadow .2s,transform .1s;
-    }
-    .tbtn:hover{border-color:var(--acid-dim);color:var(--bone)}
-    .tbtn:active{transform:translateY(1px)}
-    .tbtn svg{width:15px;height:15px}
-    .tbtn .led{width:7px;height:7px;border-radius:50%;background:var(--mut2);flex:none;transition:background .2s,box-shadow .2s}
-    .tbtn.on{color:var(--acid);border-color:var(--acid-dim)}
-    .tbtn.on .led{background:var(--acid);box-shadow:0 0 8px var(--acid)}
-    #resetBtn{color:var(--amber);border-color:rgba(255,178,36,.35)}
-    #resetBtn:hover{border-color:var(--amber);box-shadow:0 0 12px rgba(255,178,36,.15)}
-
-    /* ============ КОМПОНОВКА ============ */
-    main{position:relative;z-index:1;max-width:1460px;margin:0 auto;padding:calc(var(--head-h) + 30px) 22px 40px}
-    .hero{display:grid;grid-template-columns:1fr auto;gap:26px;align-items:end;margin-bottom:24px}
-    .hero>*{animation:rise .55s ease both}
-    .hero .hero-left{animation-delay:.06s}
-    .hero .hero-leds{animation-delay:.16s}
-    @keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-    .kicker{font-family:var(--mono);font-size:11px;letter-spacing:2.5px;color:var(--acid-dim);margin-bottom:8px}
-    .kicker b{color:var(--amber);font-weight:500}
-    h1{font-family:var(--disp);font-weight:400;font-size:clamp(30px,4.4vw,52px);letter-spacing:2px;line-height:1.04;text-transform:uppercase}
-    h1 span{color:var(--acid);text-shadow:0 0 24px rgba(166,255,61,.4)}
-    .hero-sub{color:var(--mut);font-size:14px;max-width:560px;margin-top:10px}
-    .hero-sub b{color:var(--bone);font-weight:600}
-    .presets{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
-    .preset{
-      display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;
-      padding:8px 13px;border:1px solid var(--line2);border-radius:9px;background:var(--surf3);
-      transition:border-color .2s,box-shadow .2s,transform .12s;
-    }
-    .preset:hover{border-color:var(--acid-dim);box-shadow:0 0 14px rgba(166,255,61,.12);transform:translateY(-1px)}
-    .preset b{font-family:var(--mono);font-size:11.5px;letter-spacing:.6px;color:var(--bone);font-weight:500}
-    .preset small{font-size:10.5px;color:var(--mut2)}
-    .preset.rand{border-color:rgba(183,140,255,.4);flex-direction:row;align-items:center;gap:8px}
-    .preset.rand:hover{border-color:var(--violet);box-shadow:0 0 14px rgba(183,140,255,.18)}
-    .preset.rand svg{width:16px;height:16px;color:var(--violet)}
-    .preset.rand b{color:var(--violet)}
-    .hero-leds{display:grid;grid-template-columns:repeat(4,minmax(108px,1fr));gap:10px}
-    .led-card{
-      background:linear-gradient(180deg,#0e160e,#0b110b);border:1px solid var(--line);border-radius:11px;
-      padding:11px 14px 9px;position:relative;overflow:hidden;
-    }
-    .led-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:currentColor;opacity:.55}
-    .led-card small{display:block;font-family:var(--mono);font-size:9px;letter-spacing:1.6px;color:var(--mut);margin-bottom:3px}
-    .led-card b{font-family:var(--mono);font-weight:700;font-size:27px;line-height:1;color:currentColor;text-shadow:0 0 14px currentColor}
-    .led-card i{font-style:normal;font-family:var(--mono);font-size:9.5px;color:var(--mut2);display:block;margin-top:3px}
-    .l-acid{color:var(--acid)} .l-amber{color:var(--amber)} .l-red{color:var(--red)} .l-cyan{color:var(--cyan)}
-
-    .calc-grid{display:grid;grid-template-columns:minmax(380px,460px) 1fr;gap:22px;align-items:start}
-    .panel{
-      background:linear-gradient(180deg,var(--surf),#0e150e);border:1px solid var(--line);border-radius:14px;
-      overflow:hidden;animation:rise .6s ease both;min-width:0;
-    }
-    .panel.inputs{animation-delay:.2s}
-    .panel.outputs{animation-delay:.3s;position:sticky;top:calc(var(--head-h) + 18px);max-height:calc(100vh - var(--head-h) - 34px);overflow-y:auto;overscroll-behavior:contain}
-    .panel-head{
-      position:relative;font-family:var(--disp);font-weight:400;font-size:12.5px;letter-spacing:2.2px;text-transform:uppercase;
-      padding:15px 18px 12px;color:var(--bone);
-      background:linear-gradient(90deg,#18261a,#101810);border-bottom:1px solid var(--line);
-      display:flex;align-items:center;gap:10px;
-    }
-    .panel-head::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;
-      background:repeating-linear-gradient(-45deg,var(--amber) 0 9px,#101010 9px 18px);opacity:.75}
-    .panel-head .ph-dot{width:8px;height:8px;border-radius:50%;background:var(--acid);box-shadow:0 0 9px var(--acid);flex:none}
-    .panel.outputs .panel-head .ph-dot{background:var(--cyan);box-shadow:0 0 9px var(--cyan)}
-    .panel-head small{margin-left:auto;font-family:var(--mono);font-size:9.5px;letter-spacing:1px;color:var(--mut2)}
-    .panel-body{padding:16px 18px 20px}
-
-    /* ============ БЛОКИ ВВОДА ============ */
-    .fblock{border:1px solid var(--line);border-radius:11px;padding:13px 14px 14px;margin-bottom:14px;background:rgba(13,20,13,.5)}
-    .fblock:last-child{margin-bottom:0}
-    .flegend{display:flex;align-items:center;gap:8px;margin-bottom:11px}
-    .flegend .fl-dot{width:6px;height:6px;border-radius:2px;background:var(--amber);box-shadow:0 0 7px rgba(255,178,36,.6);flex:none}
-    .flegend span{font-family:var(--mono);font-size:10.5px;letter-spacing:2px;color:var(--mut);text-transform:uppercase}
-    .flegend em{margin-left:auto;font-style:normal;font-family:var(--mono);font-size:9.5px;color:var(--mut2)}
-    .frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .field label{display:block;font-size:11px;font-weight:600;letter-spacing:.4px;color:var(--mut);margin-bottom:6px}
-    .step{display:grid;grid-template-columns:36px 1fr 36px;border:1px solid var(--line2);border-radius:9px;background:var(--surf3);overflow:hidden;transition:border-color .2s,box-shadow .2s}
-    .step:focus-within{border-color:var(--acid-dim);box-shadow:0 0 12px rgba(166,255,61,.1)}
-    .step button{
-      font-family:var(--mono);font-size:17px;color:var(--mut);background:rgba(166,255,61,.04);
-      transition:background .15s,color .15s;user-select:none;
-    }
-    .step button:hover{background:rgba(166,255,61,.13);color:var(--acid)}
-    .step button:active{background:rgba(166,255,61,.22)}
-    .step input{
-      width:100%;min-width:0;text-align:center;background:transparent;border:none;color:var(--bone);
-      font-family:var(--mono);font-weight:700;font-size:20px;padding:8px 2px;
-      -moz-appearance:textfield;appearance:textfield;
-    }
-    .step input::-webkit-inner-spin-button,.step input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
-    .step.big input{font-size:26px;color:var(--acid);text-shadow:0 0 12px rgba(166,255,61,.45)}
-    .margin-strip{
-      margin-top:11px;padding:8px 12px;border-radius:8px;border:1px dashed var(--line2);
-      font-family:var(--mono);font-size:12px;color:var(--mut);display:flex;align-items:center;gap:8px;flex-wrap:wrap;
-    }
-    .margin-strip b{font-size:14px;color:var(--acid);text-shadow:0 0 9px rgba(166,255,61,.4)}
-    .margin-strip.miss b{color:var(--amber);text-shadow:0 0 9px rgba(255,178,36,.4)}
-    .mode-hint{margin-top:9px;font-size:11px;color:var(--mut2);font-family:var(--mono);letter-spacing:.3px}
-    .mode-hint b{color:var(--cyan);font-weight:500}
-
-    /* Патроны */
-    .agroup{font-family:var(--mono);font-size:9.5px;letter-spacing:1.8px;color:var(--mut2);display:flex;align-items:center;gap:7px;margin:10px 0 7px}
-    .agroup:first-child{margin-top:0}
-    .agroup i{width:7px;height:7px;border-radius:50%;flex:none}
-    .agroup.std i{background:var(--amber);box-shadow:0 0 6px rgba(255,178,36,.6)}
-    .agroup.iso i{background:var(--violet);box-shadow:0 0 6px rgba(183,140,255,.6)}
-    .chips{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-    .chip{
-      display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;
-      padding:7px 10px;border:1px solid var(--line2);border-radius:8px;background:var(--surf3);
-      transition:border-color .15s,background .15s,box-shadow .15s;min-width:0;
-    }
-    .chip b{font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.5px;color:var(--bone)}
-    .chip small{font-size:10px;color:var(--mut2);line-height:1.25}
-    .chip:hover{border-color:var(--acid-dim)}
-    .chip.on{border-color:var(--acid);background:rgba(166,255,61,.09);box-shadow:0 0 12px rgba(166,255,61,.13)}
-    .chip.on b{color:var(--acid)}
-    .chip.iso.on{border-color:var(--violet);background:rgba(183,140,255,.09);box-shadow:0 0 12px rgba(183,140,255,.15)}
-    .chip.iso.on b{color:var(--violet)}
-    .ammo-desc{
-      margin-top:11px;padding:9px 12px;border-left:3px solid var(--amber);border-radius:0 8px 8px 0;
-      background:rgba(255,178,36,.05);font-size:12px;color:var(--mut);
-    }
-    .ammo-desc.iso{border-left-color:var(--violet);background:rgba(183,140,255,.06)}
-    .ammo-desc b{color:var(--bone);font-weight:600}
-
-    /* Броня */
-    .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-    .seg button{
-      padding:8px 4px;border:1px solid var(--line2);border-radius:8px;background:var(--surf3);
-      font-family:var(--mono);font-size:9.5px;letter-spacing:.4px;color:var(--mut);line-height:1.3;
-      transition:border-color .15s,color .15s,background .15s;
-    }
-    .seg button:hover{border-color:var(--acid-dim);color:var(--bone)}
-    .seg button.on{border-color:var(--cyan);color:var(--cyan);background:rgba(63,214,255,.08);box-shadow:0 0 10px rgba(63,214,255,.12)}
-    .plate-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px}
-    .plate{
-      position:relative;text-align:left;padding:9px 11px;border:1px solid var(--line2);border-radius:9px;background:var(--surf3);
-      transition:border-color .15s,background .15s,box-shadow .15s,opacity .2s;
-    }
-    .plate .p-code{font-family:var(--disp);font-size:16px;letter-spacing:1px;color:var(--bone);display:block;line-height:1.1}
-    .plate .p-name{font-size:10px;color:var(--mut2);display:block;margin:1px 0 6px}
-    .plate .p-stats{display:flex;gap:11px;font-family:var(--mono);font-size:11.5px}
-    .plate .p-stats span{display:inline-flex;align-items:center;gap:4px}
-    .plate .p-stats svg{width:12px;height:12px}
-    .plate .ps-def{color:var(--amber)} .plate .ps-int{color:var(--cyan)}
-    .plate .p-lock{position:absolute;top:8px;right:9px;width:13px;height:13px;color:var(--mut2)}
-    .plate:hover:not(:disabled){border-color:var(--acid-dim)}
-    .plate.on{border-color:var(--acid);background:rgba(166,255,61,.08);box-shadow:0 0 14px rgba(166,255,61,.14)}
-    .plate.on .p-code{color:var(--acid)}
-    .plate:disabled{opacity:.32}
-    .integ-row{margin-top:13px}
-    .integ-lab{display:flex;align-items:baseline;gap:8px;font-size:11px;font-weight:600;color:var(--mut);margin-bottom:8px}
-    .integ-lab b{font-family:var(--mono);font-size:15px;color:var(--cyan);text-shadow:0 0 9px rgba(63,214,255,.4)}
-    .integ-lab .i-state{margin-left:auto;font-family:var(--mono);font-size:9.5px;letter-spacing:1.2px;padding:3px 8px;border-radius:5px}
-    .i-state.ok{color:var(--acid);background:rgba(166,255,61,.1)}
-    .i-state.warn{color:var(--amber);background:rgba(255,178,36,.1)}
-    .i-state.bad{color:var(--red);background:rgba(255,75,62,.12);animation:blink 1.1s ease infinite}
-    @keyframes blink{50%{opacity:.45}}
-    input[type=range]{
-      -webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:4px;background:var(--line);cursor:pointer;
-    }
-    input[type=range]::-webkit-slider-thumb{
-      -webkit-appearance:none;width:18px;height:18px;border-radius:50%;margin-top:0;
-      background:var(--cyan);border:3px solid #0b2a33;box-shadow:0 0 10px rgba(63,214,255,.6);cursor:grab;
-    }
-    input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--cyan);border:3px solid #0b2a33;box-shadow:0 0 10px rgba(63,214,255,.6);cursor:grab}
-    input[type=range]::-moz-range-track{height:6px;border-radius:4px;background:transparent}
-    .range-marks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--mut2);margin-top:5px}
-    .range-marks .rm-bad{color:var(--red)}
-    .switch-row{display:flex;align-items:flex-start;gap:11px;padding:9px 0 0}
-    .switch{
-      flex:none;width:42px;height:23px;border-radius:12px;border:1px solid var(--line2);background:var(--surf3);
-      position:relative;transition:background .2s,border-color .2s;margin-top:1px;
-    }
-    .switch i{
-      position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:var(--mut2);
-      transition:transform .2s,background .2s,box-shadow .2s;
-    }
-    .switch[aria-checked="true"]{background:var(--acid-deep);border-color:var(--acid-dim)}
-    .switch[aria-checked="true"] i{transform:translateX(19px);background:var(--acid);box-shadow:0 0 9px rgba(166,255,61,.7)}
-    .switch:disabled{opacity:.35}
-    .sw-text{min-width:0}
-    .sw-text b{display:block;font-size:12px;font-weight:600;color:var(--bone)}
-    .sw-text small{display:block;font-size:10.5px;color:var(--mut2);line-height:1.4;margin-top:1px}
-    .sw-text .sw-hint{color:var(--amber)}
-    .passive-note{margin-top:11px;display:flex;flex-direction:column;gap:5px}
-    .passive-note div{
-      font-size:11px;color:var(--amber);padding:6px 10px;border-radius:7px;background:rgba(255,178,36,.06);
-      border:1px dashed rgba(255,178,36,.3);display:flex;gap:7px;align-items:flex-start;line-height:1.4;
-    }
-    .passive-note svg{width:12px;height:12px;flex:none;margin-top:2px}
-    .rules-note{margin-top:11px;font-size:10.5px;color:var(--mut2);line-height:1.5;border-top:1px dashed var(--line);padding-top:9px}
-    .rules-note b{color:var(--mut);font-weight:600}
-
-    /* ============ ВЫХОД ============ */
-    .banner{
-      display:flex;align-items:center;gap:12px;padding:12px 15px;border-radius:10px;margin-bottom:14px;
-      border:1px solid;transition:background .25s,border-color .25s;
-    }
-    .banner svg{width:20px;height:20px;flex:none}
-    .banner .b-word{font-family:var(--disp);font-size:16px;letter-spacing:2px}
-    .banner .b-sub{font-family:var(--mono);font-size:10.5px;color:var(--mut);margin-top:2px;letter-spacing:.4px}
-    .banner.hit{border-color:rgba(166,255,61,.4);background:rgba(166,255,61,.07);color:var(--acid)}
-    .banner.miss{border-color:rgba(255,178,36,.45);background:rgba(255,178,36,.07);color:var(--amber)}
-    .summary{display:grid;grid-template-columns:1fr 1fr 1.35fr;gap:11px;margin-bottom:14px}
-    .summary.pulse .sum-card{animation:pulse .5s ease}
-    @keyframes pulse{30%{transform:scale(1.03);box-shadow:0 0 22px rgba(166,255,61,.25)}}
-    .sum-card{
-      position:relative;border:1px solid var(--line);border-left-width:3px;border-radius:11px;padding:13px 14px 12px;
-      background:linear-gradient(180deg,#0f170f,#0c120c);overflow:hidden;transition:transform .2s;
-    }
-    .sum-card small{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:1.5px;color:var(--mut);text-transform:uppercase;padding-right:24px}
-    .sum-card b{display:block;font-family:var(--mono);font-weight:700;font-size:38px;line-height:1.1;margin-top:4px;text-shadow:0 0 16px currentColor}
-    .sum-card i{font-style:normal;display:block;font-size:10.5px;color:var(--mut2);margin-top:2px}
-    .sum-card>svg{position:absolute;top:11px;right:11px;width:18px;height:18px;opacity:.85}
-    .sc-surf{border-left-color:var(--amber)} .sc-surf b,.sc-surf>svg{color:var(--amber)}
-    .sc-agg{border-left-color:var(--red)} .sc-agg b,.sc-agg>svg{color:var(--red)}
-    .sc-int{border-left-color:var(--cyan)} .sc-int b,.sc-int>svg{color:var(--cyan)}
-    .sc-int b{font-size:30px}
-    .bar{height:8px;border-radius:5px;background:var(--line);overflow:hidden;margin-top:8px}
-    .bar-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,var(--cyan),var(--acid));transition:width .35s ease,background .3s;box-shadow:0 0 8px rgba(63,214,255,.4)}
-    .bar-fill.broken{background:var(--red);box-shadow:0 0 8px rgba(255,75,62,.5)}
-    .int-meta{display:flex;align-items:center;gap:8px;margin-top:7px;font-family:var(--mono);font-size:10.5px;color:var(--mut)}
-    .lamp{display:inline-flex;align-items:center;gap:5px;margin-left:auto;font-size:9px;letter-spacing:1.2px}
-    .lamp u{width:7px;height:7px;border-radius:50%;text-decoration:none;flex:none}
-    .lamp.ok{color:var(--acid)} .lamp.ok u{background:var(--acid);box-shadow:0 0 7px var(--acid)}
-    .lamp.warn{color:var(--amber)} .lamp.warn u{background:var(--amber);box-shadow:0 0 7px var(--amber)}
-    .lamp.bad{color:var(--red);animation:blink 1.1s ease infinite} .lamp.bad u{background:var(--red);box-shadow:0 0 7px var(--red)}
-    .lamp.none{color:var(--mut2)} .lamp.none u{background:var(--mut2)}
-    .effects{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
-    .effects:empty{display:none}
-    .fx{
-      display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:7px;border:1px solid;
-      font-size:11px;line-height:1.35;animation:rise .3s ease both;
-    }
-    .fx-dot{width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 6px currentColor;flex:none}
-    .fx-acid{color:var(--acid);border-color:rgba(166,255,61,.35);background:rgba(166,255,61,.06)}
-    .fx-amber{color:var(--amber);border-color:rgba(255,178,36,.35);background:rgba(255,178,36,.06)}
-    .fx-red{color:var(--red);border-color:rgba(255,75,62,.4);background:rgba(255,75,62,.07)}
-    .fx-cyan{color:var(--cyan);border-color:rgba(63,214,255,.35);background:rgba(63,214,255,.06)}
-    .fx-violet{color:var(--violet);border-color:rgba(183,140,255,.4);background:rgba(183,140,255,.07)}
-
-    /* Очередь */
-    .sub-block{border:1px solid var(--line);border-radius:11px;margin-bottom:14px;overflow:hidden;background:rgba(13,20,13,.5)}
-    .sub-head{
-      display:flex;align-items:center;gap:10px;padding:10px 13px;border-bottom:1px solid var(--line);
-      font-family:var(--mono);font-size:10.5px;letter-spacing:1.8px;color:var(--mut);text-transform:uppercase;
-      background:rgba(166,255,61,.03);flex-wrap:wrap;
-    }
-    .sub-head .sh-info{color:var(--mut2);letter-spacing:.4px;text-transform:none}
-    .btn{
-      display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:7px;
-      border:1px solid var(--line2);background:var(--surf3);
-      font-family:var(--mono);font-size:10.5px;letter-spacing:1px;color:var(--bone);
-      transition:border-color .15s,box-shadow .15s,transform .1s,background .15s;
-    }
-    .btn:hover{border-color:var(--acid-dim);box-shadow:0 0 10px rgba(166,255,61,.12)}
-    .btn:active{transform:translateY(1px)}
-    .btn svg{width:13px;height:13px}
-    .btn.primary{background:var(--acid-deep);border-color:var(--acid-dim);color:var(--acid)}
-    .btn.primary:hover{border-color:var(--acid);box-shadow:0 0 14px rgba(166,255,61,.25)}
-    .btn.busy{color:var(--amber);border-color:rgba(255,178,36,.4)}
-    .btn:disabled{opacity:.4}
-    .sub-head .btn{margin-left:auto}
-    .sub-head .btn+.btn{margin-left:0}
-    .tscroll{overflow-x:auto}
-    table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
-    th{font-size:9px;letter-spacing:1.4px;color:var(--mut2);text-transform:uppercase;text-align:left;padding:8px 10px;font-weight:500;white-space:nowrap}
-    td{padding:8px 10px;border-top:1px solid var(--line);white-space:nowrap;color:var(--bone)}
-    tbody tr{transition:background .2s}
-    tbody tr:hover{background:rgba(166,255,61,.04)}
-    tr.playing{background:rgba(166,255,61,.13)!important;box-shadow:inset 3px 0 0 var(--acid)}
-    tr.miss td{color:var(--mut2)}
-    .c-amber{color:var(--amber)} .c-red{color:var(--red)} .c-cyan{color:var(--cyan)} .c-acid{color:var(--acid)} .c-violet{color:var(--violet)}
-    .badge{display:inline-block;font-size:8.5px;letter-spacing:1px;padding:2px 7px;border-radius:4px;font-weight:700}
-    .b-acid{color:var(--acid);background:rgba(166,255,61,.12)}
-    .b-red{color:var(--red);background:rgba(255,75,62,.14)}
-    .b-amber{color:var(--amber);background:rgba(255,178,36,.13)}
-    .b-dim{color:var(--mut2);background:rgba(95,115,96,.12)}
-
-    /* Журнал */
-    .trace-cap{padding:9px 13px;font-family:var(--mono);font-size:10px;color:var(--mut2);border-bottom:1px dashed var(--line);letter-spacing:.3px;line-height:1.5}
-    .trace-cap b{color:var(--mut);font-weight:500}
-    .trace-body{padding:11px 13px 13px}
-    .shot-group{border:1px solid var(--line);border-radius:9px;margin-bottom:9px;background:#0e150e;overflow:hidden}
-    .shot-group:last-child{margin-bottom:0}
-    .sg-head{
-      display:flex;align-items:center;gap:8px;padding:9px 12px;list-style:none;cursor:default;
-      font-family:var(--mono);font-size:11px;letter-spacing:1.4px;color:var(--bone);flex-wrap:wrap;
-    }
-    details.shot-group>.sg-head{cursor:pointer;transition:background .15s}
-    details.shot-group>.sg-head:hover{background:rgba(166,255,61,.05)}
-    details.shot-group>.sg-head::-webkit-details-marker{display:none}
-    .sg-chev{margin-left:auto;width:13px;height:13px;color:var(--mut2);transition:transform .2s;flex:none}
-    details[open] .sg-chev{transform:rotate(180deg)}
-    .steps{list-style:none;padding:2px 12px 11px;counter-reset:st}
-    .steps li{
-      counter-increment:st;position:relative;padding:6px 0 6px 30px;border-left:2px solid var(--line2);
-      margin-left:8px;padding-left:22px;
-    }
-    .steps li::before{
-      content:counter(st,decimal-leading-zero);position:absolute;left:-13px;top:8px;
-      font-family:var(--mono);font-size:9px;color:var(--acid-dim);background:#0e150e;padding:1px 3px;
-    }
-    .steps li .sl{display:block;font-size:10.5px;color:var(--mut);letter-spacing:.2px}
-    .steps li .se{display:block;font-family:var(--mono);font-size:12.5px;color:var(--bone);margin-top:1px}
-    .steps li.t-ok{border-left-color:var(--acid-dim)} .steps li.t-ok .se{color:var(--acid)}
-    .steps li.t-surf{border-left-color:rgba(255,178,36,.5)} .steps li.t-surf .se{color:var(--amber)}
-    .steps li.t-agg{border-left-color:rgba(255,75,62,.5)} .steps li.t-agg .se{color:var(--red)}
-    .steps li.t-integ{border-left-color:rgba(63,214,255,.5)} .steps li.t-integ .se{color:var(--cyan)}
-    .steps li.t-warn{border-left-color:var(--amber)} .steps li.t-warn .se{color:var(--amber)}
-    .steps li.t-danger{border-left-color:var(--red)} .steps li.t-danger .se{color:var(--red);font-weight:700}
-    .steps li.t-info{border-left-color:rgba(183,140,255,.5)} .steps li.t-info .se{color:var(--violet)}
-
-    /* ============ СПРАВОЧНИК ============ */
-    #ref{margin-top:34px}
-    .ref-panel{animation:none;opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
-    .ref-panel.in{opacity:1;transform:translateY(0)}
-    .ref-tabs{display:flex;flex-wrap:wrap;gap:6px;padding:13px 16px 0}
-    .ref-tabs button{
-      padding:9px 15px;border:1px solid var(--line2);border-bottom:none;border-radius:9px 9px 0 0;
-      font-family:var(--mono);font-size:10.5px;letter-spacing:1.4px;color:var(--mut);background:var(--surf3);
-      transition:color .15s,border-color .15s,background .15s;
-    }
-    .ref-tabs button:hover{color:var(--bone)}
-    .ref-tabs button[aria-selected="true"]{color:var(--acid);border-color:var(--acid-dim);background:rgba(166,255,61,.08)}
-    .ref-pane{padding:16px;border-top:1px solid var(--line)}
-    .ref-intro{font-size:12px;color:var(--mut2);margin-bottom:13px;max-width:820px}
-    .ref-cards{display:grid;grid-template-columns:1fr 1fr;gap:11px}
-    .rcard{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:rgba(13,20,13,.6)}
-    .rcard-h{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:7px}
-    .rcard-h b{font-family:var(--disp);font-weight:400;font-size:15px;letter-spacing:1px;color:var(--acid)}
-    .rcard-h span{font-size:12px;color:var(--bone);font-weight:600}
-    .rcard-h .rstats{margin-left:auto;display:flex;gap:9px;font-family:var(--mono);font-size:11px}
-    .rcard dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:11.5px}
-    .rcard dt{font-family:var(--mono);font-size:9.5px;letter-spacing:1px;color:var(--mut2);text-transform:uppercase;padding-top:2px;white-space:nowrap}
-    .rcard dd{color:var(--mut);line-height:1.45}
-    .rcard dd b{color:var(--bone);font-weight:600}
-    .rcard.vio .rcard-h b{color:var(--violet)}
-    .rcard.amb .rcard-h b{color:var(--amber)}
-    .mode-tag{
-      display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;
-      font-family:var(--disp);font-size:11px;letter-spacing:1px;flex:none;
-    }
-    .ref-modes{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
-    .ref-modes .rcard-h{align-items:center}
-    .ref-table{min-width:780px}
-    .ref-table td{white-space:normal;vertical-align:top;font-size:11.5px;line-height:1.45}
-    .ref-table td:first-child{font-weight:700;color:var(--bone);white-space:nowrap}
-    .ref-table .rng-ok{color:var(--acid)} .ref-table .rng-mid{color:var(--amber)} .ref-table .rng-bad{color:var(--red)}
-    .ref-table small{display:block;color:var(--mut2);font-size:10px;margin-top:2px}
-    .ref-sub{font-family:var(--mono);font-size:10px;letter-spacing:1.8px;color:var(--mut);text-transform:uppercase;margin:16px 0 9px;display:flex;align-items:center;gap:8px}
-    .ref-sub::after{content:'';flex:1;height:1px;background:var(--line)}
-    .ref-sub:first-child{margin-top:0}
-
-    /* ============ ПОДВАЛ / ТОСТ / ПИЛЮЛЯ ============ */
-    footer{position:relative;z-index:1;text-align:center;padding:26px 20px 34px;border-top:1px solid var(--line);margin-top:10px}
-    footer svg{width:17px;height:17px;color:var(--acid-dim);vertical-align:-3px;margin-right:7px}
-    footer p{font-family:var(--mono);font-size:11px;letter-spacing:1.2px;color:var(--mut)}
-    footer small{display:block;font-family:var(--mono);font-size:9.5px;color:var(--mut2);margin-top:5px;letter-spacing:.6px}
-    #toast{
-      position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);z-index:80;opacity:0;pointer-events:none;
-      display:flex;align-items:center;gap:13px;padding:11px 15px;border-radius:10px;
-      background:#131c13;border:1px solid var(--acid-dim);box-shadow:0 6px 30px rgba(0,0,0,.5),0 0 18px rgba(166,255,61,.12);
-      transition:opacity .25s,transform .25s;max-width:min(92vw,560px);
-    }
-    #toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
-    #toastMsg{font-size:12.5px;color:var(--bone)}
-    #toastAct{font-family:var(--mono);font-size:11px;letter-spacing:1px;color:var(--acid);padding:5px 10px;border:1px solid var(--acid-dim);border-radius:6px;flex:none}
-    #toastAct:hover{background:rgba(166,255,61,.1)}
-    #toastClose{color:var(--mut2);font-size:15px;padding:2px 5px;flex:none}
-    #toastClose:hover{color:var(--bone)}
-    .m-jump{
-      display:none;position:fixed;right:16px;bottom:16px;z-index:60;align-items:center;gap:9px;
-      padding:10px 15px;border-radius:999px;background:#101a10;border:1px solid var(--cyan);
-      font-family:var(--mono);font-size:11px;color:var(--cyan);box-shadow:0 4px 22px rgba(0,0,0,.5),0 0 14px rgba(63,214,255,.2);
-    }
-    .m-jump svg{width:13px;height:13px}
-    noscript .ns{display:block;max-width:600px;margin:120px auto;padding:20px;border:1px solid var(--amber);border-radius:10px;color:var(--amber);font-family:var(--mono);text-align:center}
-
-    /* ============ АДАПТИВ ============ */
-    @media (max-width:1180px){
-      .calc-grid{grid-template-columns:minmax(340px,400px) 1fr}
-      .hero{grid-template-columns:1fr}
-      .hero-leds{grid-template-columns:repeat(4,1fr)}
-    }
-    @media (max-width:1023px){
-      .calc-grid{grid-template-columns:1fr}
-      .panel.outputs{position:static;max-height:none;overflow:visible}
-      .m-jump{display:inline-flex}
-      .m-jump.away{display:none}
-      .ref-modes{grid-template-columns:1fr 1fr}
-    }
-    @media (max-width:720px){
-      main{padding:calc(var(--head-h) + 22px) 13px 30px}
-      header{padding:0 12px;gap:10px}
-      .brand-t small{display:none}
-      nav a{padding:7px 8px;font-size:10px}
-      .tbtn .tb-lbl{display:none}
-      .tbtn{padding:8px 9px}
-      .hero-leds{grid-template-columns:1fr 1fr}
-      .summary{grid-template-columns:1fr}
-      .sc-int b{font-size:34px}
-      .ref-cards{grid-template-columns:1fr}
-      .ref-modes{grid-template-columns:1fr}
-      .frow{grid-template-columns:1fr 1fr}
-      .seg{grid-template-columns:1fr 1fr}
-      h1{letter-spacing:1px}
-    }
-    @media (max-width:400px){
-      .chips{grid-template-columns:1fr}
-      .plate-grid{grid-template-columns:1fr}
-      .frow{grid-template-columns:1fr}
-    }
-    @media (prefers-reduced-motion: reduce){
-      *,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
-      #motes{display:none}
-    }
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body>
 
 <div class="bg" aria-hidden="true">
-  <div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div>
-  <div class="gridlines"></div>
-  <div id="motes"></div>
-  <div class="scan"></div>
-  <div class="grain"></div>
+  <div class="bg-mesh"></div>
+  <div class="bg-glow g1"></div>
+  <div class="bg-glow g2"></div>
+  <div class="bg-glow g3"></div>
+  <div class="bg-grid"></div>
+  <div class="bg-grain"></div>
 </div>
 
-<header id="topbar">
+<a class="skip" href="#calc">Перейти к расчёту</a>
+
+<header class="hdr">
   <a class="brand" href="#calc">
-    <svg viewBox="0 0 100 100" aria-hidden="true"><g fill="currentColor"><path d="M50 50 L30 15.4 A40 40 0 0 1 70 15.4 Z"/><path d="M50 50 L30 15.4 A40 40 0 0 1 70 15.4 Z" transform="rotate(120 50 50)"/><path d="M50 50 L30 15.4 A40 40 0 0 1 70 15.4 Z" transform="rotate(240 50 50)"/></g><circle cx="50" cy="50" r="15" fill="#0c120c"/><circle cx="50" cy="50" r="7" fill="currentColor"/></svg>
-    <span class="brand-t"><b>ИЗОТОПНЫЙ ЯРУС</b><small>ОГНЕСТРЕЛ-КАЛЬКУЛЯТОР · ЗОНА-137</small></span>
+    <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+      <circle cx="32" cy="32" r="19" fill="none" stroke="currentColor" stroke-width="4"/>
+      <path d="M32 5v14M32 45v14M5 32h14M45 32h14" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="32" cy="32" r="5" fill="currentColor"/>
+    </svg>
+    <span class="brand-txt">
+      <b>IRREALITY</b>
+      <small>КАЛЬКУЛЯТОР ОГНЕСТРЕЛА</small>
+    </span>
   </a>
-  <nav aria-label="Разделы">
-    <a href="#calc" data-nav="calc" class="active">Калькулятор</a>
+  <nav class="nav" id="navLinks" aria-label="Разделы">
+    <a href="#calc" data-nav="calc" class="on">Расчёт</a>
+    <a href="#log" data-nav="log">Журнал</a>
     <a href="#ref" data-nav="ref">Справочник</a>
+    <a href="#format" data-nav="format">Формат модуля</a>
   </nav>
-  <div class="top-actions">
-    <button class="tbtn on" id="soundBtn" aria-pressed="true" title="Звук прибора: щелчки дозиметра при расчёте и проигрывании очереди">
-      <svg id="soundIcOn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
-      <svg id="soundIcOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" hidden><path d="M11 5 6 9H2v6h4l5 4V5z" fill="currentColor" stroke="none"/><path d="m16 9 6 6M22 9l-6 6"/></svg>
-      <span class="tb-lbl" id="soundLbl">ЗВУК ВКЛ</span><span class="led"></span>
+  <div class="hdr-actions">
+    <button class="hbtn accent" id="modBtn" data-act="gate-open" title="Конфигурация модулей">
+      <span class="dot"></span><span class="hbtn-lbl">МОДУЛИ</span><b id="modCount">1</b>
     </button>
-    <button class="tbtn" id="resetBtn" title="Вернуть параметры по умолчанию (с возможностью отмены)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
-      <span class="tb-lbl">СБРОС</span>
+    <button class="hbtn" id="resetBtn" data-act="reset" title="Сбросить параметры расчёта">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+      <span class="hbtn-lbl">СБРОС</span>
     </button>
   </div>
 </header>
 
 <main>
+
+  <!-- ================= РАСЧЁТ ================= -->
   <section id="calc">
-    <div class="hero">
-      <div class="hero-left">
-        <div class="kicker">// ПОЛИФОНИЯ · ИНСТРУМЕНТ МАСТЕРА · <b>ДОЗНАНИЕ ОРУЖИЯ</b></div>
-        <h1>Расчёт <span>попадания</span></h1>
-        <p class="hero-sub">Введите <b>успехи атаки</b> и выберите <b>бронепластину</b> — прибор посчитает, сколько урона пройдёт в здоровье, насколько просядет целостность брони, и покажет <b>каждый шаг вычисления</b>.</p>
-        <div class="presets" id="presetRow">
-          <button class="preset" data-preset="p1"><b>Дуплет по кевлару</b><small>дробовик · 10 м · лёгкая броня</small></button>
-          <button class="preset" data-preset="p2"><b>Очередь по стали</b><small>автомат · 5 выстрелов · УСТ</small></button>
-          <button class="preset" data-preset="p3"><b>Вольфрам vs «Саркофаг»</b><small>Изотопный Ярус · ядерный бой</small></button>
-          <button class="preset rand" data-act="rand" title="Собрать случайную сцену">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.2" cy="8.2" r="1.4" fill="currentColor" stroke="none"/><circle cx="15.8" cy="8.2" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="8.2" cy="15.8" r="1.4" fill="currentColor" stroke="none"/><circle cx="15.8" cy="15.8" r="1.4" fill="currentColor" stroke="none"/></svg>
-            <b>СЛУЧАЙНАЯ СЦЕНА</b>
-          </button>
-        </div>
+    <div class="masthead">
+      <div class="mh-left">
+        <div class="kicker">IRREALITY · СЕТТИНГОНЕЗАВИСИМАЯ СИСТЕМА · <b>ОГНЕСТРЕЛ</b></div>
+        <h1>Расчёт <span>урона</span><br>и износа брони</h1>
+        <p class="lede">Успехи атаки → Разница → Рейтинг оружия → поглощение пластиной. Остаток уходит в здоровье как <b>Усугублённый</b>, поглощённое — в <b>Целостность</b> один раз за обстрел. Ниже — каждое вычисление.</p>
+        <div class="mh-mods" id="activeModChips"></div>
       </div>
-      <div class="hero-leds" aria-live="polite">
-        <div class="led-card l-acid"><small>РАЗНИЦА</small><b id="ledMargin">0</b><i>атака − защита</i></div>
-        <div class="led-card l-amber"><small>ПОВ. → HP</small><b id="ledSurf">0</b><i>поверхностный</i></div>
-        <div class="led-card l-red"><small>УСУГ. → HP</small><b id="ledAgg">0</b><i>усугублённый</i></div>
-        <div class="led-card l-cyan"><small>ИЗНОС</small><b id="ledWear">0</b><i>целостность брони</i></div>
+      <div class="mh-strip">
+        <div class="ms-cell"><small>РАЗНИЦА</small><b id="mMargin">0</b><i>атака − защита</i></div>
+        <div class="ms-cell t-agg"><small>ИТОГОВЫЙ УРОН</small><b id="mDamage">0</b><i>до брони</i></div>
+        <div class="ms-cell t-steel"><small>ПОГЛОЩЕНО</small><b id="mAbsorbed">0</b><i>пластиной</i></div>
+        <div class="ms-cell t-steel"><small>ЦЕЛОСТНОСТЬ</small><b id="mIntegrity">—</b><i>после обстрела</i></div>
       </div>
     </div>
 
-    <div class="calc-grid">
-      <!-- ВХОД -->
-      <div class="panel inputs">
-        <div class="panel-head"><span class="ph-dot"></span>Вход · параметры сцены<small>ЖИВОЙ ПЕРЕСЧЁТ</small></div>
-        <div class="panel-body">
+    <div class="workbench">
 
-          <div class="fblock">
-            <div class="flegend"><span class="fl-dot"></span><span>Бросок</span><em>d10 · успех 6+ · 10 = 2 успеха</em></div>
-            <div class="frow">
-              <div class="field">
-                <label for="in-attack">Успехи атаки</label>
-                <div class="step big">
-                  <button type="button" data-key="attack" data-dir="-1" aria-label="Уменьшить успехи атаки">−</button>
-                  <input id="in-attack" data-key="attack" type="number" min="0" max="20" value="4" inputmode="numeric">
-                  <button type="button" data-key="attack" data-dir="1" aria-label="Увеличить успехи атаки">+</button>
-                </div>
-              </div>
-              <div class="field">
-                <label for="in-defense">Успехи защиты цели</label>
-                <div class="step">
-                  <button type="button" data-key="defense" data-dir="-1" aria-label="Уменьшить успехи защиты">−</button>
-                  <input id="in-defense" data-key="defense" type="number" min="0" max="20" value="1" inputmode="numeric">
-                  <button type="button" data-key="defense" data-dir="1" aria-label="Увеличить успехи защиты">+</button>
-                </div>
+      <!-- ---------- ВВОД ---------- -->
+      <div class="col-controls">
+
+        <div class="block">
+          <div class="block-head"><span class="bh-idx">01</span><h3>Бросок</h3><span class="bh-note">d10 · 6+ успех · 10 = 2</span></div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="in-attack">Успехи атаки</label>
+              <div class="stepper big t-agg">
+                <button type="button" data-act="step" data-key="attack" data-dir="-1" aria-label="Уменьшить успехи атаки">−</button>
+                <input id="in-attack" type="number" inputmode="numeric" min="0" max="30" data-key="attack" value="4">
+                <button type="button" data-act="step" data-key="attack" data-dir="1" aria-label="Увеличить успехи атаки">+</button>
               </div>
             </div>
-            <div class="margin-strip" id="marginStrip">РАЗНИЦА = <b>4 − 1 = 3</b></div>
-          </div>
-
-          <div class="fblock">
-            <div class="flegend"><span class="fl-dot"></span><span>Оружие и режим</span><em>урон = Рейтинг + Разница</em></div>
-            <div class="frow">
-              <div class="field">
-                <label for="in-rating">Рейтинг оружия</label>
-                <div class="step">
-                  <button type="button" data-key="rating" data-dir="-1" aria-label="Уменьшить рейтинг">−</button>
-                  <input id="in-rating" data-key="rating" type="number" min="0" max="12" value="4" inputmode="numeric">
-                  <button type="button" data-key="rating" data-dir="1" aria-label="Увеличить рейтинг">+</button>
-                </div>
-              </div>
-              <div class="field">
-                <label for="in-shots">Выстрелов в очереди</label>
-                <div class="step">
-                  <button type="button" data-key="shots" data-dir="-1" aria-label="Уменьшить число выстрелов">−</button>
-                  <input id="in-shots" data-key="shots" type="number" min="1" max="10" value="3" inputmode="numeric">
-                  <button type="button" data-key="shots" data-dir="1" aria-label="Увеличить число выстрелов">+</button>
-                </div>
+            <div class="field">
+              <label for="in-defense">Успехи защиты цели</label>
+              <div class="stepper big t-steel">
+                <button type="button" data-act="step" data-key="defense" data-dir="-1" aria-label="Уменьшить успехи защиты">−</button>
+                <input id="in-defense" type="number" inputmode="numeric" min="0" max="30" data-key="defense" value="2">
+                <button type="button" data-act="step" data-key="defense" data-dir="1" aria-label="Увеличить успехи защиты">+</button>
               </div>
             </div>
-            <div class="mode-hint" id="modeHint"></div>
           </div>
+          <div class="margin-read" id="marginRead"></div>
 
-          <div class="fblock">
-            <div class="flegend"><span class="fl-dot"></span><span>Патрон</span><em>9 типов в базе</em></div>
-            <div class="agroup std"><i></i>СТАНДАРТНЫЕ</div>
-            <div class="chips" id="ammoStd"></div>
-            <div class="agroup iso"><i></i>ИЗОТОПНЫЙ ЯРУС · ЯДЕРНЫЕ</div>
-            <div class="chips" id="ammoIso"></div>
-            <div class="ammo-desc" id="ammoDesc"></div>
-          </div>
-
-          <div class="fblock">
-            <div class="flegend"><span class="fl-dot"></span><span>Броня цели</span><em>носитель → пластина</em></div>
-            <div class="seg" id="carrierSeg" role="group" aria-label="Носитель брони">
-              <button type="button" data-carrier="none">БЕЗ БРОНИ</button>
-              <button type="button" data-carrier="vest">УДАРНЫЙ ЖИЛЕТ</button>
-              <button type="button" data-carrier="light">ЛЁГКАЯ</button>
-              <button type="button" data-carrier="heavy">ТЯЖЁЛАЯ</button>
-            </div>
-            <div id="armorDetail">
-              <div class="plate-grid" id="plateGrid"></div>
-              <div class="integ-row">
-                <div class="integ-lab">Текущая целостность <b><span id="integVal">6</span> / <span id="integMax">6</span></b><span class="i-state ok" id="integState">ЦЕЛА</span></div>
-                <input type="range" id="integRange" min="0" max="6" step="1" value="6" aria-label="Текущая целостность пластины">
-                <div class="range-marks"><span class="rm-bad">0 · ПОЛОМКА</span><span>МАКС</span></div>
+          <div class="pool">
+            <div class="pool-head"><b>Пул кубиков</b><span>Меткость + Ловкость · защита Ловкость + Атлетика</span></div>
+            <div class="grid-4">
+              <div class="field mini"><label for="in-marksmanship">Меткость</label>
+                <div class="stepper sm"><button type="button" data-act="step" data-key="marksmanship" data-dir="-1" aria-label="Меткость минус">−</button><input id="in-marksmanship" type="number" min="0" max="12" data-key="marksmanship" value="4"><button type="button" data-act="step" data-key="marksmanship" data-dir="1" aria-label="Меткость плюс">+</button></div>
               </div>
-              <div class="switch-row">
-                <button type="button" class="switch" id="firstTgl" role="switch" aria-checked="true" aria-label="Первая пуля"><i></i></button>
-                <div class="sw-text">
-                  <b>Первая пуля</b>
-                  <small>Эффект свежей пластины: КВ/УКВ +1 Защиты; КР/УКР игнорируют избыточный урон. Только 1-й выстрел при полной целостности.</small>
-                  <small class="sw-hint" id="firstHint"></small>
-                </div>
+              <div class="field mini"><label for="in-agility">Ловкость</label>
+                <div class="stepper sm"><button type="button" data-act="step" data-key="agility" data-dir="-1" aria-label="Ловкость минус">−</button><input id="in-agility" type="number" min="0" max="12" data-key="agility" value="3"><button type="button" data-act="step" data-key="agility" data-dir="1" aria-label="Ловкость плюс">+</button></div>
               </div>
-              <div class="passive-note" id="passiveNote"></div>
+              <div class="field mini"><label for="in-defAgility">Ловк. цели</label>
+                <div class="stepper sm"><button type="button" data-act="step" data-key="defAgility" data-dir="-1" aria-label="Ловкость цели минус">−</button><input id="in-defAgility" type="number" min="0" max="12" data-key="defAgility" value="3"><button type="button" data-act="step" data-key="defAgility" data-dir="1" aria-label="Ловкость цели плюс">+</button></div>
+              </div>
+              <div class="field mini"><label for="in-athletics">Атлетика</label>
+                <div class="stepper sm"><button type="button" data-act="step" data-key="athletics" data-dir="-1" aria-label="Атлетика минус">−</button><input id="in-athletics" type="number" min="0" max="12" data-key="athletics" value="2"><button type="button" data-act="step" data-key="athletics" data-dir="1" aria-label="Атлетика плюс">+</button></div>
+              </div>
+            </div>
+            <div class="pool-read" id="poolRead"></div>
+            <div class="pool-actions">
+              <button type="button" class="btn primary" data-act="roll" data-pool="both">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/></svg>
+                Бросить оба
+              </button>
+              <button type="button" class="btn" data-act="roll" data-pool="attack">Атака</button>
+              <button type="button" class="btn" data-act="roll" data-pool="defense">Защита</button>
+              <label class="check"><input type="checkbox" id="autoApply" data-key="autoApply" checked><span>Применять успехи</span></label>
+            </div>
+            <div class="dice-trays" id="diceTrays"></div>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="block-head"><span class="bh-idx">02</span><h3>Оружие и дистанция</h3><span class="bh-note">Рейтинг пишется с «+»</span></div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="in-rating">Рейтинг оружия</label>
+              <div class="stepper big t-agg prefixed">
+                <button type="button" data-act="step" data-key="rating" data-dir="-1" aria-label="Рейтинг минус">−</button>
+                <span class="prefix">+</span>
+                <input id="in-rating" type="number" inputmode="numeric" min="0" max="15" data-key="rating" value="4">
+                <button type="button" data-act="step" data-key="rating" data-dir="1" aria-label="Рейтинг плюс">+</button>
+              </div>
+            </div>
+            <div class="field">
+              <label for="classSelect">Тип оружия</label>
+              <select id="classSelect" data-key="weaponClassId"></select>
+            </div>
+          </div>
+          <div class="rating-note" id="ratingNote"></div>
+          <div class="field">
+            <label>Дистанция</label>
+            <div class="seg seg-3" id="distSeg" role="group" aria-label="Дистанция"></div>
+          </div>
+          <div class="field" id="weaponSelectWrap" hidden>
+            <label for="weaponSelect">Ствол из базы модуля</label>
+            <select id="weaponSelect" data-key="weaponId"></select>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="block-head"><span class="bh-idx">03</span><h3>Режим стрельбы</h3><span class="bh-note">один обстрел = один расчёт</span></div>
+          <div class="chips-mode" id="modeChips"></div>
+          <div class="mode-extra" id="aimWrap" hidden>
+            <div class="field">
+              <label for="in-aimTurns">Ходов прицеливания · <b id="aimVal">0</b></label>
+              <input type="range" id="in-aimTurns" min="0" max="3" step="1" value="0" data-key="aimTurns">
+              <div class="range-marks"><span>0</span><span>1</span><span>2</span><span>3</span></div>
+            </div>
+            <div class="switch-row">
+              <button type="button" class="switch" id="headshotTgl" data-act="toggle" data-key="headshot" role="switch" aria-checked="false" aria-label="Прицел в голову"><i></i></button>
+              <div class="sw-txt"><b>Прицел в голову</b><small>−2 кубика к броску, +2 к итоговому урону.</small></div>
+            </div>
+          </div>
+          <div class="mode-note" id="modeNote"></div>
+        </div>
+
+        <div class="block">
+          <div class="block-head"><span class="bh-idx">04</span><h3>Патрон</h3><span class="bh-note" id="ammoCount"></span></div>
+          <div id="ammoGroups"></div>
+          <div class="ammo-desc" id="ammoDesc"></div>
+        </div>
+
+        <div class="block">
+          <div class="block-head"><span class="bh-idx">05</span><h3>Броня цели</h3><span class="bh-note">носитель → пластина</span></div>
+          <div class="seg seg-4" id="carrierSeg" role="group" aria-label="Носитель брони"></div>
+          <div id="armorBody">
+            <div class="plate-grid" id="plateGrid"></div>
+            <div class="field integ">
+              <label for="in-integrity">Целостность в начале серии · <b><span id="integVal">6</span> / <span id="integMax">6</span></b><span class="state-tag" id="integState">ЦЕЛА</span></label>
+              <input type="range" id="in-integrity" min="0" max="6" step="1" value="6" data-key="integrityStart">
+              <div class="range-marks"><span class="bad">0 · ПОЛОМКА</span><span>МАКС</span></div>
+            </div>
+            <div class="field">
+              <label>Первая пуля</label>
+              <div class="seg seg-3" id="firstSeg" role="group" aria-label="Эффект первой пули">
+                <button type="button" data-act="set" data-key="firstShotMode" data-value="auto">АВТО</button>
+                <button type="button" data-act="set" data-key="firstShotMode" data-value="on">ВКЛ</button>
+                <button type="button" data-act="set" data-key="firstShotMode" data-value="off">ВЫКЛ</button>
+              </div>
+              <div class="sub-note" id="firstNote"></div>
+            </div>
+            <div class="passives" id="passiveBox"></div>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="block-head"><span class="bh-idx">06</span><h3>Укрытие цели</h3><span class="bh-note">кубики к пулу защиты</span></div>
+          <div class="seg seg-4" id="coverSeg" role="group" aria-label="Укрытие"></div>
+          <div class="sub-note" id="coverNote"></div>
+        </div>
+
+        <div class="block">
+          <div class="block-head"><span class="bh-idx">07</span><h3>Правила</h3><span class="bh-note">ядро + модули</span></div>
+          <div id="rulesBox"></div>
+        </div>
+
+      </div>
+
+      <!-- ---------- ВЫВОД ---------- -->
+      <div class="col-results" id="results">
+        <div class="res-inner">
+          <div class="res-head"><span class="rh-dot"></span>РЕЗУЛЬТАТ ОБСТРЕЛА<small>живой пересчёт</small></div>
+
+          <div class="verdict" id="verdict"></div>
+
+          <div class="readout">
+            <div class="ro t-agg"><small>УСУГУБЛЁННЫЙ → ЗДОРОВЬЕ</small><b id="roAgg">0</b>
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.6 14 8l6.4-2-4 5.4 5.6 3.4-6.6.8 1 6.6-4.4-5-4.4 5 1-6.6-6.6-.8L7.6 11.4l-4-5.4L10 8z"/></svg>
+            </div>
+            <div class="ro t-surf"><small>ПОВЕРХНОСТНЫЙ → ЗДОРОВЬЕ</small><b id="roSurf">0</b>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="2 12 6 12 9 5 13 19 16 12 22 12"/></svg>
+            </div>
+            <div class="ro t-steel"><small>ИЗНОС ЦЕЛОСТНОСТИ</small><b id="roWear">0</b>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 21 7 21 17 12 22 3 17 3 7"/></svg>
             </div>
           </div>
 
-          <div class="fblock">
-            <div class="flegend"><span class="fl-dot"></span><span>Тонкие правила</span><em>трактовки мастера</em></div>
-            <div id="rulesBox"></div>
-            <div class="rules-note"><b>Принятые допущения:</b> Разница ≤ 0 — промах; округление «Саркофага» — вниз; поглощённый Усугублённый изнашивает пластину так же, как Поверхностный; «первая пуля» — только при полной целостности. Модификаторы режимов (−1 кубик одиночного и т.п.) применяются к пулу до броска — здесь вводятся уже готовые успехи.</div>
+          <div class="split" id="splitBox"></div>
+          <div class="gauge" id="gaugeBox"></div>
+          <div class="flags" id="flagBox"></div>
+
+          <div class="trace-wrap">
+            <div class="trace-head">ЖУРНАЛ ВЫЧИСЛЕНИЙ<small id="traceCount"></small></div>
+            <ol class="trace" id="traceBox"></ol>
           </div>
 
+          <div class="res-actions">
+            <button type="button" class="btn primary wide" data-act="log-add" id="addLogBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              Зафиксировать обстрел
+            </button>
+            <div class="res-actions-row">
+              <button type="button" class="btn" data-act="copy">Копировать отчёт</button>
+              <button type="button" class="btn" data-act="md">Скачать .md</button>
+              <button type="button" class="btn" data-act="print">Печать</button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- ВЫХОД -->
-      <div class="panel outputs" id="outPanel">
-        <div class="panel-head"><span class="ph-dot"></span>Выход · результат<small>ОБНОВЛЯЕТСЯ СРАЗУ</small></div>
-        <div class="panel-body">
-          <div class="banner hit" id="banner"></div>
-
-          <div class="summary" id="summaryGrid">
-            <div class="sum-card sc-surf">
-              <small>Поверхностный → здоровье</small>
-              <b id="sumSurf">0</b><i>за всю очередь</i>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 12 6 12 9 5 13 19 16 12 22 12"/></svg>
-            </div>
-            <div class="sum-card sc-agg">
-              <small>Усугублённый → здоровье</small>
-              <b id="sumAgg">0</b><i>за всю очередь</i>
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1.6 14 8l6.4-2-4 5.4 5.6 3.4-6.6.8 1 6.6-4.4-5-4.4 5 1-6.6-6.6-.8L7.6 11.4l-4-5.4L10 8z"/></svg>
-            </div>
-            <div class="sum-card sc-int">
-              <small>Износ целостности брони</small>
-              <b id="sumWear">0</b><i id="wearSub">потрачено прочности</i>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polygon points="12 2 21 7 21 17 12 22 3 17 3 7"/></svg>
-              <div class="bar"><div class="bar-fill" id="integBarFill" style="width:100%"></div></div>
-              <div class="int-meta"><span id="integRemain">остаток 6 / 6</span><span class="lamp ok" id="plateLamp"><u></u><span>ЦЕЛА</span></span></div>
-            </div>
-          </div>
-
-          <div class="effects" id="effects"></div>
-
-          <div class="sub-block" id="burstBlock">
-            <div class="sub-head">Очередь · по выстрелам <span class="sh-info" id="burstInfo"></span>
-              <button type="button" class="btn primary" id="playBtn">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span>ПРОИГРАТЬ</span>
-              </button>
-            </div>
-            <div class="tscroll">
-              <table class="ref-burst" style="min-width:560px">
-                <thead><tr><th>№</th><th>Защита</th><th>Пов → HP</th><th>Усуг → HP</th><th>Износ</th><th>Остаток</th><th>Событие</th></tr></thead>
-                <tbody id="burstBody"></tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="sub-block">
-            <div class="sub-head">Журнал вычислений
-              <button type="button" class="btn" id="copyBtn" title="Скопировать отчёт в буфер обмена">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>КОПИРОВАТЬ</span>
-              </button>
-              <button type="button" class="btn" id="dlBtn" title="Скачать отчёт в Markdown">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/></svg><span>.MD</span>
-              </button>
-            </div>
-            <div class="trace-cap"><b>Конвейер:</b> Урон = Рейтинг + Разница + патрон → минус Защита брони → в Здоровье; поглощённое → в Целостность (½ с округлением пластины; дробь и плазма — целиком).</div>
-            <div class="trace-body" id="trace"></div>
-          </div>
-
-        </div>
-      </div>
     </div>
   </section>
 
+  <!-- ================= ЖУРНАЛ ================= -->
+  <section id="log">
+    <div class="sec-head">
+      <div><div class="kicker">СЕРИЯ ОБСТРЕЛОВ ПО ОДНОЙ ЦЕЛИ</div><h2>Журнал</h2></div>
+      <p>Целостность переносится между обстрелами. Порядок можно менять перетаскиванием — серия пересчитывается целиком.</p>
+    </div>
+    <div class="log-summary" id="logSummary"></div>
+    <div class="log-toolbar">
+      <div class="seg seg-3 compact" id="logFilter" role="group" aria-label="Фильтр журнала">
+        <button type="button" data-act="log-filter" data-value="all">ВСЕ</button>
+        <button type="button" data-act="log-filter" data-value="hit">ПОПАДАНИЯ</button>
+        <button type="button" data-act="log-filter" data-value="miss">ПРОМАХИ</button>
+      </div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" id="logSearch" placeholder="Поиск: патрон, пластина, режим…" aria-label="Поиск по журналу">
+      </div>
+      <div class="log-tools">
+        <button type="button" class="btn" data-act="log-demo">Демо-серия</button>
+        <button type="button" class="btn" data-act="log-export">Экспорт .md</button>
+        <button type="button" class="btn danger" data-act="log-clear">Очистить</button>
+      </div>
+    </div>
+    <div class="log-list" id="logList"></div>
+    <div class="log-empty" id="logEmpty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M15 4v5h5"/><path d="M8 13h8M8 17h5"/></svg>
+      <b>Серия пуста</b>
+      <span>Настройте обстрел слева и нажмите «Зафиксировать обстрел» — запись появится здесь, а Целостность брони перейдёт к следующему выстрелу.</span>
+    </div>
+  </section>
+
+  <!-- ================= СПРАВОЧНИК ================= -->
   <section id="ref">
-    <div class="panel ref-panel" id="refPanel">
-      <div class="panel-head"><span class="ph-dot" style="background:var(--amber);box-shadow:0 0 9px var(--amber)"></span>Справочник · база Зоны-137<small>ИСТОЧНИК: ДОКУМЕНТЫ МАСТЕРА</small></div>
-      <div class="ref-tabs" id="refTabs" role="tablist">
-        <button role="tab" data-tab="plates" aria-selected="true">ПЛАСТИНЫ · 7</button>
-        <button role="tab" data-tab="ammo" aria-selected="false">ПАТРОНЫ · 9</button>
-        <button role="tab" data-tab="dist" aria-selected="false">ДИСТАНЦИИ · 7</button>
-        <button role="tab" data-tab="modes" aria-selected="false">РЕЖИМЫ · 6</button>
+    <div class="sec-head">
+      <div><div class="kicker">БАЗА ЯДРА И ПОДКЛЮЧЁННЫХ МОДУЛЕЙ</div><h2>Справочник</h2></div>
+      <p>Всё, что участвует в расчёте. Каждый элемент помечен модулем-источником и полным идентификатором <code>namespace:id</code>.</p>
+    </div>
+    <div class="ref-bar">
+      <div class="ref-tabs" id="refTabs" role="tablist"></div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" id="refSearch" placeholder="Фильтр по названию, коду, эффекту…" aria-label="Поиск по справочнику">
       </div>
-      <div class="ref-pane" id="tab-plates" role="tabpanel"></div>
-      <div class="ref-pane" id="tab-ammo" role="tabpanel" hidden></div>
-      <div class="ref-pane" id="tab-dist" role="tabpanel" hidden></div>
-      <div class="ref-pane" id="tab-modes" role="tabpanel" hidden></div>
+    </div>
+    <div class="ref-pane" id="refPane" role="tabpanel"></div>
+  </section>
+
+  <!-- ================= ФОРМАТ МОДУЛЯ ================= -->
+  <section id="format">
+    <div class="sec-head">
+      <div><div class="kicker">РАСШИРЕНИЕ СИСТЕМЫ</div><h2>Формат модуля</h2></div>
+      <p>Модуль — один JSON-манифест в папке <code>/modules</code>. Добавьте файл, впишите его в реестр — он появится в конфигурации при входе.</p>
+    </div>
+
+    <div class="fmt-grid">
+      <div class="fmt-card">
+        <h3>1 · Структура проекта</h3>
+        <pre class="code"><code>modules/
+├── index.json            ← реестр загрузки
+├── irreality-core.json   ← ядро (всегда включено)
+├── isotope-tier.json     ← модуль сеттинга
+└── my-setting.json       ← ваш новый модуль</code></pre>
+        <h3>2 · Реестр</h3>
+        <pre class="code" id="formatCode"><code>{
+  "schema": "irreality.module-registry/1",
+  "modules": [
+    { "id": "irreality-core", "file": "irreality-core.json", "required": true },
+    { "id": "isotope-tier",   "file": "isotope-tier.json" },
+    { "id": "my-setting",     "file": "my-setting.json" }
+  ]
+}</code></pre>
+        <div class="fmt-actions">
+          <button type="button" class="btn primary" data-act="tpl">Скачать шаблон модуля</button>
+          <button type="button" class="btn" data-act="idx-copy">Копировать реестр</button>
+          <button type="button" class="btn" data-act="gate-open">Конфигурация модулей</button>
+        </div>
+      </div>
+
+      <div class="fmt-card">
+        <h3>3 · Поля манифеста</h3>
+        <table class="fmt-table">
+          <tbody>
+          <tr><td><code>id</code>, <code>namespace</code></td><td>Уникальные. Пространство имён даёт идентификаторы вида <code>iso:sarcophagus</code> и защищает от конфликтов.</td></tr>
+          <tr><td><code>kind</code></td><td><code>core</code> — ядро (нельзя выключить), <code>module</code> — обычный модуль.</td></tr>
+          <tr><td><code>requires</code></td><td>Массив id обязательных зависимостей. Без них модуль не включится.</td></tr>
+          <tr><td><code>damageTypes</code></td><td>Типы урона: <code>id</code>, <code>label</code>, <code>short</code>, <code>tone</code>. Формат универсален — можно ввести свои типы.</td></tr>
+          <tr><td><code>plates</code></td><td><code>defense</code>, <code>integrity</code>, <code>rounding</code> (floor/round/ceil), <code>breakPenalty</code>, <code>firstShot</code>, <code>passive</code>, <code>effects</code>.</td></tr>
+          <tr><td><code>carriers</code></td><td>Носители: <code>plates</code> — список допустимых пластин, <code>passive.mods</code> — штрафы к пулу.</td></tr>
+          <tr><td><code>carrierExtensions</code></td><td>Расширение чужого носителя: <code>target: "core:heavy"</code>, <code>addPlates: ["sarcophagus"]</code>.</td></tr>
+          <tr><td><code>ammo</code></td><td><code>damageType</code>, <code>damageBonus</code>, <code>damageVsArmor</code>, <code>attackDice</code>, <code>armorPierce</code>, <code>ignoreWearDivision</code>, <code>fixedDamage</code>, <code>surfaceBypass</code>, <code>tags</code>, <code>effects</code>.</td></tr>
+          <tr><td><code>weapons</code></td><td>Необязательно: <code>rating</code>, <code>weaponClass</code> — стволы появятся в селекторе и справочнике.</td></tr>
+          <tr><td><code>weaponClasses</code>, <code>fireModes</code>, <code>covers</code></td><td>Таблицы дистанций, режимы и укрытия. Ядро задаёт базовые, модуль может добавить свои.</td></tr>
+          <tr><td><code>rules</code></td><td>Настраиваемые правила: <code>toggle</code>, <code>number</code>, <code>select</code> + <code>default</code>, <code>dependsOn</code>. Появляются в блоке «Правила».</td></tr>
+          </tbody>
+        </table>
+
+        <h3>4 · Эффекты и условия</h3>
+        <table class="fmt-table">
+          <tbody>
+          <tr><td><code>reduceDamage</code></td><td><code>damageType</code>, <code>amount</code>, <code>min</code>, <code>rule</code>, <code>minRule</code> — снижение урона определенного типа.</td></tr>
+          <tr><td><code>extraWear</code></td><td><code>amount</code> / <code>rule</code> — дополнительный износ Целостности за обстрел.</td></tr>
+          <tr><td><code>zeroIntegrity</code></td><td><code>target</code> — обнуление Целостности указанного слоя (нарративный флаг).</td></tr>
+          <tr><td><code>note</code></td><td><code>text</code> — предупреждение мастеру в списке эффектов.</td></tr>
+          <tr><td><code>when</code></td><td>Условия: <code>ammoTag</code>, <code>ammoId</code>, <code>damageType</code>, <code>armored</code>, <code>broken</code>. Пустое — всегда.</td></tr>
+          <tr><td><code>rule</code></td><td>Ссылка на значение правила модуля: <code>"rule": "iso:sacrificialWear"</code>.</td></tr>
+          </tbody>
+        </table>
+        <p class="fmt-note">Порядок загрузки задаётся перетаскиванием в конфигурации: нижние модули применяются поверх верхних. Неизвестные типы эффектов не ломают расчёт — они попадают в отчёт о валидации.</p>
+      </div>
     </div>
   </section>
+
 </main>
 
-<footer>
-  <p><svg viewBox="0 0 100 100" aria-hidden="true"><g fill="currentColor"><path d="M50 50 L30 15.4 A40 40 0 0 1 70 15.4 Z"/><path d="M50 50 L30 15.4 A40 40 0 0 1 70 15.4 Z" transform="rotate(120 50 50)"/><path d="M50 50 L30 15.4 A40 40 0 0 1 70 15.4 Z" transform="rotate(240 50 50)"/></g><circle cx="50" cy="50" r="15" fill="#070b07"/><circle cx="50" cy="50" r="7" fill="currentColor"/></svg>ПОЛИФОНИЯ · ИЗОТОПНЫЙ ЯРУС · ЗОНА-137</p>
-  <small>Все расчёты выполняются локально в браузере · параметры сохраняются между сессиями</small>
+<footer class="ftr">
+  <div>
+    <b>IRREALITY</b> · калькулятор огнестрельного урона · сеттингонезависимое ядро + модули
+  </div>
+  <small>Все вычисления выполняются локально в браузере. Параметры и серия обстрелов сохраняются между сессиями.</small>
 </footer>
 
-<button class="m-jump" id="mJump" type="button">
-  <span id="mJumpTxt">ПОВ 0 · УСГУГ 0</span>
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m5 12 7 7 7-7"/></svg>
+<button class="jump" id="jumpPill" type="button" data-act="jump">
+  <span id="jumpTxt">УСУГ 0 · ПОВ 0</span>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
 </button>
 
-<div id="toast" role="status">
-  <span id="toastMsg"></span>
-  <button id="toastAct" type="button" hidden>ВЕРНУТЬ</button>
-  <button id="toastClose" type="button" aria-label="Закрыть">✕</button>
+<!-- ================= КОНФИГУРАЦИЯ МОДУЛЕЙ ================= -->
+<div class="gate" id="gate" hidden>
+  <div class="gate-inner">
+    <div class="gate-top">
+      <div class="gate-title">
+        <div class="kicker">КОНФИГУРАЦИЯ · ПЕРЕД ВХОДОМ</div>
+        <h2>Модули <span>Irreality</span></h2>
+        <p>Ядро системы загружается всегда. Подключите модули сеттингов — их пластины, патроны, стволы и правила появятся в калькуляторе и справочнике. Порядок загрузки меняется перетаскиванием.</p>
+        <div class="gate-meta" id="gateMeta"></div>
+      </div>
+      <button class="gate-x" id="gateClose" data-act="gate-close" aria-label="Закрыть конфигурацию" hidden>✕</button>
+    </div>
+
+    <div class="gate-body">
+      <div class="gate-list" id="gateList"></div>
+      <aside class="gate-side">
+        <div class="gs-card">
+          <h3>Как добавить свой модуль</h3>
+          <ol>
+            <li>Скачайте шаблон манифеста.</li>
+            <li>Положите файл в папку <code>/modules</code>.</li>
+            <li>Добавьте запись в <code>modules/index.json</code>.</li>
+            <li>Обновите страницу — модуль появится здесь.</li>
+          </ol>
+          <button type="button" class="btn primary wide" data-act="tpl">Скачать шаблон .json</button>
+          <label class="btn wide file-btn">
+            Проверить модуль локально
+            <input type="file" id="localFile" accept=".json,application/json" hidden>
+          </label>
+          <small class="gs-note">Локальная проверка хранится только в этом браузере и не попадает в репозиторий.</small>
+        </div>
+        <div class="gs-card" id="gateErrorsCard" hidden>
+          <h3>Отчёт загрузки</h3>
+          <ul class="gs-errors" id="gateErrors"></ul>
+        </div>
+        <div class="gs-card">
+          <h3>Правила загрузки</h3>
+          <ul class="gs-rules">
+            <li><b>Ядро</b> нельзя выключить и оно всегда первое.</li>
+            <li><b>Зависимости</b> обязательны: модуль не включится без них.</li>
+            <li><b>Namespace</b> изолирует идентификаторы: <code>core:kevlar</code> и <code>iso:sarcophagus</code>.</li>
+            <li><b>Порядок</b>: нижние модули расширяют и переопределяют верхние.</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+
+    <div class="gate-foot">
+      <div class="gf-count" id="gateCount"></div>
+      <button class="btn primary xl" id="gateEnter" data-act="gate-enter">Войти в калькулятор</button>
+    </div>
+  </div>
 </div>
 
-<noscript><div class="ns">Прибору нужен JavaScript: включите его, чтобы считать урон.</div></noscript>
+<div class="toast" id="toast" role="status" hidden>
+  <span id="toastMsg"></span>
+  <button type="button" id="toastAct" data-act="toast-act" hidden>ВЕРНУТЬ</button>
+  <button type="button" id="toastClose" data-act="toast-close" aria-label="Закрыть">✕</button>
+</div>
 
-<script>
-  'use strict';
-  /* ================= ДАННЫЕ БАЗЫ ================= */
-  const PLATES = {
-    kv:  {id:'kv', code:'КВ',  name:'Кевларовая',            def:2, integ:6,  first:'plus1',  round:'floor', brk:1, passive:null, special:null},
-    st:  {id:'st', code:'СТ',  name:'Стальная',              def:3, integ:20, first:null,     round:'math',  brk:1, passive:null, special:null},
-    kr:  {id:'kr', code:'КР',  name:'Керамическая',          def:4, integ:5,  first:'ignore', round:'floor', brk:3, passive:null, special:null},
-    ukv: {id:'ukv',code:'УКВ', name:'Кевларовая (усил.)',    def:4, integ:10, first:'plus1',  round:'floor', brk:3, passive:null, special:null},
-    ust: {id:'ust',code:'УСТ', name:'Стальная (усил.)',      def:5, integ:30, first:null,     round:'math',  brk:3, passive:'−1 к успехам на выносливость', special:null},
-    ukr: {id:'ukr',code:'УКР', name:'Керамическая (усил.)',  def:6, integ:8,  first:'ignore', round:'floor', brk:4, passive:'−1 выносливость', special:null},
-    ak:  {id:'ak', code:'АК',  name:'Аблятивный «Саркофаг»', def:6, integ:12, first:null,     round:'floor', brk:4,
-      passive:'−2 к успехам всех проверок Ловкости и Реакции',
-      special:'Ядерный Усуг. урон −2 (но не ниже 1). Жертвенный слой: −4 Целостности при каждом ядерном попадании. Бег или драка дольше 2 раундов: проверка Выносливости (Сл. 7), иначе 1 Пов. урона от перегрева и удушья. Поломка: броня фонит — 1 Пов. урона в час носителю.'}
-  };
-  const PLATE_ORDER = ['kv','st','kr','ukv','ust','ukr','ak'];
-  const CARRIERS = {
-    none:  {id:'none', name:'Без брони',      plates:[], cap:'—', passive:null},
-    vest:  {id:'vest', name:'Ударный жилет',  plates:['kv'], cap:'2 мл, 3 м, 1 модульный (ср)', passive:null},
-    light: {id:'light',name:'Лёгкая броня',   plates:['kv','st','kr'], cap:'3 мл, 1 модульный (ср)', passive:null},
-    heavy: {id:'heavy',name:'Тяжёлая броня',  plates:PLATE_ORDER.slice(), cap:'1 ср, 2 мл, 1 модульный (кр)', passive:'−1 Ловкость (пассивная)'}
-  };
-  const AMMO = {
-    fmj:   {id:'fmj',   code:'FMJ',  name:'Оболочечный',              group:'std', type:'surface', dmg:0, hit:0,
-      desc:'Обычный патрон. Без модификаторов.'},
-    jhp:   {id:'jhp',   code:'JHP',  name:'Экспансивный',             group:'std', type:'surface', dmg:1, hit:-1,
-      desc:'+1 к урону; −1 к попаданию против брони/укрытия. Раскрывается в теле, но вязнет в пластинах.'},
-    ap:    {id:'ap',    code:'AP',   name:'Бронебойный',              group:'std', type:'surface', dmg:0, hit:1,
-      desc:'+1 к попаданию против брони/укрытия.'},
-    shot:  {id:'shot',  code:'ДРОБЬ',name:'Дробь',                    group:'std', type:'surface', dmg:0, hit:0, armorDmg:-2, noHalve:true,
-      desc:'−2 к урону против брони; весь поглощённый бронёй урон не режется вдвое — сноп дроби выгрызает пластину целиком.'},
-    tung:  {id:'tung',  code:'ВОЛЬФРАМ', name:'Гиперзвуковой вольфрам', group:'iso', type:'agg', dmg:0, hit:0, pen:1, nuclear:true,
-      desc:'Стандарт Яруса. Базовый урон — Усугублённый. Игнорирует 1 пункт Защиты брони. Создаёт гигантскую кавитационную полость.'},
-    thermo:{id:'thermo',code:'ТЕРМОБАР', name:'Термобарический микрозаряд', group:'iso', type:'agg', fixed:{agg:2,surf:3}, shock:true, nuclear:true,
-      desc:'Урон: 2 Усуг. + 3 Пов. Поверхностный идёт и в Целостность брони, и в Здоровье (шоковая волна). При попадании — микровзрыв плазмы, отрыв конечностей.'},
-    needle:{id:'needle',code:'ИГЛА', name:'Кавитационная игла',       group:'iso', type:'agg', dmg:0, hit:0, pen:2, nuclear:true,
-      desc:'Снайперская. Базовый урон — Усугублённый. Игнорирует 2 пункта Защиты. Волна дробит кости внутри тела — броня не спасает от гидроудара.'},
-    emp:   {id:'emp',   code:'ЭМИ',  name:'ЭМИ-разрядник',            group:'iso', type:'surface', fixed:{surf:1}, emp:true,
-      desc:'Нелетальный. Урон: 1 Пов. Мгновенно обнуляет Целостность любого киберимпланта или электронной брони. Отключает «Око Бога» на 1d3 раунда.'},
-    plasma:{id:'plasma',code:'ПЛАЗМА',name:'Разрывная плазма',        group:'iso', type:'agg', fixed:{agg:2}, noHalve:true, nuclear:true,
-      desc:'Ядерная дробь. Урон: 2 Усуг. на близкой дистанции. Как обычная дробь — поглощённый урон не делится пополам, мгновенно выжигая защитные пластины.'}
-  };
-  const AMMO_STD = ['fmj','jhp','ap','shot'];
-  const AMMO_ISO = ['tung','thermo','needle','emp','plasma'];
-  const RULES = [
-    {key:'halve', name:'Поглощённый урон режется вдвое', desc:'Урон, поглощённый бронёй, уходит в Целостность в половинном размере (округление — по пластине). Дробь и плазма игнорируют это правило.'},
-    {key:'aggSoak', name:'Броня поглощает Усугублённый', desc:'Выкл: Усуг. урон проходит сквозь броню целиком в Здоровье; пластина изнашивается только Поверхностным.'},
-    {key:'hitMods', name:'Модификаторы попадания патрона', desc:'JHP −1 / AP +1 к успехам атаки против брони. Включайте для планирования до броска; выкл — введённые успехи окончательны.'},
-    {key:'fixedSpecial', name:'Фиксированный урон спецпатронов', desc:'Термобар / ЭМИ / плазма наносят урон из описания вместо «Рейтинг + Разница». Выкл: формула прибавляется к фиксированному урону.'}
-  ];
-  const PRESETS = {
-    p1:{name:'Дуплет по кевлару', s:{attack:4,defense:1,rating:5,shots:2,ammo:'shot',carrier:'light',plate:'kv',integrity:6,firstBullet:true}},
-    p2:{name:'Очередь по стали', s:{attack:5,defense:2,rating:4,shots:5,ammo:'fmj',carrier:'heavy',plate:'ust',integrity:30,firstBullet:true}},
-    p3:{name:'Вольфрам vs «Саркофаг»', s:{attack:6,defense:2,rating:5,shots:3,ammo:'tung',carrier:'heavy',plate:'ak',integrity:12,firstBullet:true}}
-  };
-  const DIST = [
-    {w:'Пистолет', a:'0–15 м · норма', b:'15–30 м · −2 кубика', c:'30+ м · −4 кубика', n:'На 30 м попасть в стрессе почти нереально без упора.'},
-    {w:'ПП', a:'0–25 м · норма', b:'25–75 м · −2 кубика', c:'75+ м · −4 кубика', n:'Тяжёлый затвор и пистолетный патрон. Пуля быстро теряет энергию и падает.'},
-    {w:'Дробовик (дробь)', a:'0–10 м · +1 кубик, Урон 5', b:'10–25 м · норма, Урон 4', c:'25+ м · −3 кубика, Урон 2', n:'Дробь рассеивается: дальше 25 м в человека попадает лишь пара дробин — остановки цели не гарантирует.'},
-    {w:'Дробовик (пуля)', a:'0–25 м · норма', b:'25–75 м · −1 кубик', c:'75+ м · −3 кубика', n:'Тяжёлая свинцовая пуля быстро теряет высоту (низкий баллистический коэффициент).'},
-    {w:'Штурмовая винтовка (5.56)', a:'0–50 м · норма', b:'50–200 м · норма', c:'200–400 м · −2 кубика без оптики', n:'Стандарт НАТО. На 50+ м пуля летит стабильно, но в тесных коридорах Зоны-137 длинный ствол мешает.'},
-    {w:'Боевая / снайперская (7.62)', a:'0–30 м · −2 кубика', b:'30–300 м · норма', c:'300–800 м · норма с оптикой', n:'Мощный патрон, но в CQB длинный ствол и оптика (туннельное зрение) делают оружие неповоротливым.'},
-    {w:'Антиматериальная (.50)', a:'0–50 м · −3 кубика', b:'50–500 м · норма', c:'500–1500 м · норма', n:'Чудовищная отдача и вес. Стрельба с рук в упор — вывих плеча и промах. Требует сошек.'}
-  ];
-  const MODES = [
-    {tag:'ОЧ', tone:'acid', name:'Очередь (Burst)', cost:'3–5 патронов', pool:'0 (базовый бросок)', dmg:'Рейтинг + Разница',
-      note:'Стандартный режим: короткий контролируемый выпуск свинца. Зацеп соседей: при Разнице ≥ 4 пули прошивают цель — любой в 1–2 м за ней получает 2 Поверхностного урона.'},
-    {tag:'ОД', tone:'cyan', name:'Одиночный (Single)', cost:'1 патрон', pool:'−1 кубик автоматам/ПП; 0 пистолетам/снайперским', dmg:'Рейтинг + Разница',
-      note:'Экономия и полуавтоматы. На адреналине выстрелить ровно один раз из автомата сложнее, чем дать очередь. Для пистолетов и снайперских — штатный режим.'},
-    {tag:'ВС', tone:'amber', name:'Вслепую (македонский)', cost:'1–3 патрона', pool:'−4 кубика', dmg:'по площади',
-      note:'Стрельба из-за угла, не высовывая голову. Стрелок в полном укрытии (+3 к Защите). За каждую выпавшую «1» — рикошет: случайная цель в радиусе 10 м (союзник, гражданский или сам стрелок) получает половину Рейтинга урона.'},
-    {tag:'ПД', tone:'red', name:'Подавление (Suppression)', cost:'10 патронов или весь магазин', pool:'+2 кубика', dmg:'Рейтинг + Разница по всем в конусе 5 м',
-      note:'Зажать гашетку и поливать коридор. Задевает всех — врагов и союзников. Уклониться можно только нырнув за укрытие. Отдача и перегрев: −1 кубик на любое действие в следующий ход.'},
-    {tag:'ПР', tone:'violet', name:'Прицельный (Aimed)', cost:'1 патрон', pool:'+1 кубик за ход прицеливания (макс. +3 за 3 хода)', dmg:'Рейтинг + Разница; в голову: −2 кубика, +2 урона',
-      note:'Требует времени; невозможен в упор или под огнём. Если стрелок получает урон до выстрела — прицел сбивается, бонусы сгорают.'},
-    {tag:'ДП', tone:'amber', name:'Дуплет (Double Tap)', cost:'2 патрона', pool:'−1 кубик (чудовищная отдача)', dmg:'Рейтинг + Разница + 2',
-      note:'Только дробовики (помпа или двустволка), только до 10 метров. Два быстрых выстрела.'}
-  ];
-  const DEFAULTS = {attack:4, defense:1, rating:4, shots:3, ammo:'fmj', carrier:'light', plate:'kv', integrity:6, firstBullet:true,
-    rules:{halve:true, aggSoak:true, hitMods:false, fixedSpecial:true}};
-  const LIMITS = {attack:[0,20], defense:[0,20], rating:[0,12], shots:[1,10]};
-
-  /* ================= ХЕЛПЕРЫ / СОСТОЯНИЕ ================= */
-  const $ = id => document.getElementById(id);
-  const RM = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const clone = o => JSON.parse(JSON.stringify(o));
-  const clampInt = (v,min,max) => Math.min(max, Math.max(min, Math.round(v)));
-  const fmtN = n => String(n).replace('-','−');
-  const plural = (n,a,b,c) => { const m=n%100; if(m>=11&&m<=14) return c; const k=n%10; return k===1?a:(k>=2&&k<=4?b:c); };
-  const LS_KEY='iso-firecalc-v1', LS_SND='iso-firecalc-snd';
-
-  function sanitize(raw){
-    const s = clone(DEFAULTS);
-    if(!raw || typeof raw!=='object') return s;
-    for(const k of Object.keys(LIMITS)){ if(Number.isFinite(+raw[k])) s[k]=clampInt(+raw[k],LIMITS[k][0],LIMITS[k][1]); }
-    if(AMMO[raw.ammo]) s.ammo=raw.ammo;
-    if(CARRIERS[raw.carrier]) s.carrier=raw.carrier;
-    if(PLATES[raw.plate]) s.plate=raw.plate;
-    if(s.carrier!=='none' && !CARRIERS[s.carrier].plates.includes(s.plate)) s.plate=CARRIERS[s.carrier].plates[0];
-    const mx = PLATES[s.plate].integ;
-    s.integrity = Number.isFinite(+raw.integrity) ? clampInt(+raw.integrity,0,mx) : mx;
-    s.firstBullet = raw.firstBullet!==false;
-    if(raw.rules && typeof raw.rules==='object') for(const r of RULES) if(typeof raw.rules[r.key]==='boolean') s.rules[r.key]=raw.rules[r.key];
-    return s;
-  }
-  function loadState(){ try{ return sanitize(JSON.parse(localStorage.getItem(LS_KEY))); }catch(e){ return clone(DEFAULTS); } }
-  function saveState(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} }
-  let state = loadState();
-  let soundOn = true;
-  try{ soundOn = localStorage.getItem(LS_SND)!=='0'; }catch(e){}
-  let lastResult = null, prevBreak = false;
-
-  /* ================= ЗВУК (синтез, без файлов) ================= */
-  let AC=null, master=null;
-  function audio(){
-    if(!soundOn) return null;
-    if(!AC){
-      try{
-        const Ctx = window.AudioContext||window.webkitAudioContext; if(!Ctx) return null;
-        AC=new Ctx(); master=AC.createGain(); master.gain.value=0.5; master.connect(AC.destination);
-      }catch(e){ return null; }
-    }
-    if(AC.state==='suspended') AC.resume().catch(()=>{});
-    return AC;
-  }
-  function noiseBuf(ac,dur){
-    const b=ac.createBuffer(1,Math.max(1,Math.floor(ac.sampleRate*dur)),ac.sampleRate), d=b.getChannelData(0);
-    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2);
-    return b;
-  }
-  function sndTick(){ // щелчок дозиметра
-    const ac=audio(); if(!ac) return; const t=ac.currentTime;
-    const src=ac.createBufferSource(); src.buffer=noiseBuf(ac,0.028);
-    const bp=ac.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=2500+Math.random()*900; bp.Q.value=1.3;
-    const g=ac.createGain(); g.gain.setValueAtTime(0.5,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.03);
-    src.connect(bp); bp.connect(g); g.connect(master); src.start(t);
-  }
-  function sndThud(){ // глухой удар сломавшейся пластины
-    const ac=audio(); if(!ac) return; const t=ac.currentTime;
-    const o=ac.createOscillator(); o.type='sine'; o.frequency.setValueAtTime(130,t); o.frequency.exponentialRampToValueAtTime(42,t+0.2);
-    const g=ac.createGain(); g.gain.setValueAtTime(0.55,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.24);
-    o.connect(g); g.connect(master); o.start(t); o.stop(t+0.26);
-    const src=ac.createBufferSource(); src.buffer=noiseBuf(ac,0.09);
-    const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=420;
-    const g2=ac.createGain(); g2.gain.setValueAtTime(0.35,t); g2.gain.exponentialRampToValueAtTime(0.001,t+0.1);
-    src.connect(lp); lp.connect(g2); g2.connect(master); src.start(t);
-  }
-  function sndUi(){
-    const ac=audio(); if(!ac) return; const t=ac.currentTime;
-    const o=ac.createOscillator(); o.type='square'; o.frequency.value=1700;
-    const g=ac.createGain(); g.gain.setValueAtTime(0.09,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.02);
-    o.connect(g); g.connect(master); o.start(t); o.stop(t+0.025);
-  }
-  let tickT=null;
-  function queueTick(thud){ if(!soundOn) return; clearTimeout(tickT); tickT=setTimeout(()=>{ thud?sndThud():sndTick(); },110); }
-
-  /* ================= ДВИЖОК РАСЧЁТА ================= */
-  function computeShot(ctx, integBefore, idx){
-    const {state, plate, ammo, armored} = ctx;
-    const steps=[];
-    let margin = state.attack - state.defense;
-    steps.push({l:'Разница (Margin)', e:`${state.attack} − ${state.defense} = ${fmtN(margin)}`, t:margin>0?'ok':'warn'});
-    if(state.rules.hitMods && armored && ammo.hit){
-      const adj = margin + ammo.hit;
-      steps.push({l:`Патрон ${ammo.code}: модификатор попадания против брони`, e:`${fmtN(margin)} ${ammo.hit>0?'+':'−'} ${Math.abs(ammo.hit)} = ${fmtN(adj)}`, t:'info'});
-      margin = adj;
-    }
-    if(margin<=0){
-      steps.push({l:'Промах', e:'Разница ≤ 0 — урон не наносится', t:'warn'});
-      return {i:idx, miss:true, margin, A:0, firstEff:null, healthS:0, healthA:0, wear:0, sac:0, shock:0,
-        integBefore, integAfter:integBefore, brokeNow:false, steps};
-    }
-    /* 1. Величины урона */
-    let surf=0, agg=0;
-    const formula = state.rating + margin;
-    if(ammo.fixed){
-      surf = ammo.fixed.surf||0; agg = ammo.fixed.agg||0;
-      steps.push({l:`${ammo.name}: фиксированный урон`, e:`${agg?agg+' Усуг.':''}${agg&&surf?' + ':''}${surf?surf+' Пов.':''}`, t:'info'});
-      if(!state.rules.fixedSpecial){
-        if(ammo.type==='agg') agg+=formula; else surf+=formula;
-        steps.push({l:'Правило: формула добавлена к фикс. урону', e:`Рейтинг ${state.rating} + Разница ${margin} = ${formula}`, t:'info'});
-      }
-    } else {
-      let d = formula;
-      steps.push({l:'Базовый урон', e:`Рейтинг ${state.rating} + Разница ${margin} = ${d}`, t:ammo.type==='agg'?'agg':'surf'});
-      if(ammo.dmg){ const b=d; d+=ammo.dmg; steps.push({l:`Патрон ${ammo.code}: ${ammo.dmg>0?'+':''}${ammo.dmg} к урону`, e:`${b} + ${ammo.dmg} = ${d}`, t:ammo.type==='agg'?'agg':'surf'}); }
-      if(ammo.armorDmg && armored){ const b=d; d+=ammo.armorDmg; steps.push({l:'Дробь против брони: −2 к урону', e:`${b} − 2 = ${fmtN(d)}`, t:'surf'}); }
-      if(d<0){ steps.push({l:'Урон не может быть отрицательным', e:`${fmtN(d)} → 0`, t:'info'}); d=0; }
-      if(ammo.type==='agg') agg=d; else surf=d;
-    }
-    const shock = ammo.shock ? surf : 0;   // шоковая волна идёт сквозь броню
-    const soakSurf = surf - shock;
-    /* 2. Защита пластины */
-    let A=0, firstEff=null, ignoreExcess=false;
-    const broken = armored && integBefore<=0;
-    if(armored){
-      A = plate.def;
-      steps.push({l:`Защита пластины (${plate.code})`, e:`${plate.def}`, t:'integ'});
-      if(broken){ A=Math.max(0,A-plate.brk); steps.push({l:`Пластина сломана (${plate.code})`, e:`${plate.def} − ${plate.brk} = ${A} Защиты`, t:'danger'}); }
-      const fresh = integBefore===plate.integ;
-      if(idx===0 && state.firstBullet && fresh && !broken && plate.first){
-        if(plate.first==='plus1'){ A+=1; firstEff='plus1'; steps.push({l:`Первая пуля (${plate.code})`, e:`+1 к Защите → ${A}`, t:'ok'}); }
-        else { ignoreExcess=true; firstEff='ignore'; steps.push({l:`Первая пуля (${plate.code})`, e:'избыточный урон будет проигнорирован', t:'ok'}); }
-      }
-      if(ammo.pen){ const b=A; A=Math.max(0,A-ammo.pen); steps.push({l:`${ammo.name}: пробитие`, e:`${b} − ${ammo.pen} = ${A} Защиты`, t:'agg'}); }
-    } else {
-      steps.push({l:'Броня отсутствует', e:'весь урон проходит в Здоровье', t:'warn'});
-    }
-    /* 3. «Саркофаг» против ядерного оружия */
-    let sac=0;
-    if(armored && plate.id==='ak' && ammo.nuclear){
-      if(agg>0){ const b=agg; agg=Math.max(1,agg-2); steps.push({l:'«Саркофаг»: ядерный Усуг. снижен', e:`${b} − 2 = ${agg}${b-2<1?' (мин. 1)':''}`, t:'ok'}); }
-      sac=4; steps.push({l:'Жертвенный слой «Саркофага»', e:'−4 Целостности за ядерное попадание', t:'danger'});
-    }
-    /* 4. Поглощение и урон в здоровье */
-    let absorbedS=0, absorbedA=0, healthS=0, healthA=0, remA=A;
-    if(soakSurf>0){
-      absorbedS=Math.min(soakSurf,remA); remA-=absorbedS; healthS=soakSurf-absorbedS;
-      if(armored && A>0) steps.push({l:'Поглощено бронёй (Пов.)', e:`min(${soakSurf}, ${A}) = ${absorbedS}`, t:'integ'});
-      steps.push({l:'В Здоровье · Поверхностный', e:`${soakSurf} − ${absorbedS} = ${healthS}`, t:'surf'});
-    }
-    if(agg>0){
-      if(state.rules.aggSoak && armored){
-        const avail=remA; absorbedA=Math.min(agg,avail); healthA=agg-absorbedA;
-        if(A>0) steps.push({l:'Поглощено бронёй (Усуг.)', e:`min(${agg}, ${avail}) = ${absorbedA}`, t:'integ'});
-        steps.push({l:'В Здоровье · Усугублённый', e:`${agg} − ${absorbedA} = ${healthA}`, t:'agg'});
-      } else {
-        healthA=agg;
-        steps.push({l:'В Здоровье · Усугублённый', e:armored?`${agg} — броня не поглощает Усуг. (правило)`:`${agg}`, t:'agg'});
-      }
-    }
-    if(ignoreExcess && (healthS>0||healthA>0)){
-      steps.push({l:`Первая пуля (${plate.code}): избыток проигнорирован`, e:`${healthS+healthA} → 0 в Здоровье`, t:'ok'});
-      healthS=0; healthA=0;
-    }
-    if(shock>0){ healthS+=shock; steps.push({l:'Шоковая волна (термобар)', e:`${shock} Пов. сквозь броню → в Здоровье и в Целостность`, t:'danger'}); }
-    /* 5. Износ целостности */
-    const absorbed=absorbedS+absorbedA;
-    let wear=0;
-    if(armored && absorbed>0){
-      if(ammo.noHalve || !state.rules.halve){
-        wear=absorbed;
-        steps.push({l:'Износ пластины', e:ammo.noHalve?`${absorbed} — не делится вдвое (${ammo.id==='shot'?'дробь':'плазма'})`:`${absorbed} (правило: без деления)`, t:'integ'});
-      } else {
-        const half=absorbed/2;
-        wear = plate.round==='math' ? Math.round(half) : Math.floor(half);
-        steps.push({l:'Износ пластины (½ поглощённого)', e:`${absorbed} ÷ 2 = ${half} → ${wear} (${plate.round==='math'?'мат. округл.':'вниз'})`, t:'integ'});
-      }
-    }
-    if(armored && shock>0) wear+=shock;
-    wear+=sac;
-    const integAfter = armored ? Math.max(0,integBefore-wear) : 0;
-    const brokeNow = armored && integBefore>0 && integAfter===0;
-    if(armored){
-      steps.push({l:'Целостность', e:`${integBefore} − ${wear} = ${integAfter} / ${plate.integ}`, t:'integ'});
-      if(brokeNow) steps.push({l:'ПЛАСТИНА СЛОМАНА', e:`Защита −${plate.brk} со следующего выстрела`, t:'danger'});
-    }
-    return {i:idx, miss:false, margin, A, firstEff, healthS, healthA, wear, sac, shock, integBefore, integAfter, brokeNow, steps};
-  }
-  function compute(){
-    const carrier=CARRIERS[state.carrier];
-    const plate = state.carrier==='none' ? null : PLATES[state.plate];
-    const ammo=AMMO[state.ammo];
-    const armored=!!plate;
-    const ctx={state,plate,ammo,armored};
-    let integ = armored ? state.integrity : 0;
-    const shots=[];
-    for(let i=0;i<state.shots;i++){ const sh=computeShot(ctx,integ,i); shots.push(sh); integ=sh.integAfter; }
-    const totals={s:0,a:0,w:0,final:integ};
-    shots.forEach(sh=>{ totals.s+=sh.healthS; totals.a+=sh.healthA; totals.w+=sh.wear; });
-    const margin=shots[0].margin, hit=!shots[0].miss;
-    const fx=[];
-    if(hit){
-      if(shots.some(s=>s.firstEff==='plus1')) fx.push({tone:'acid', text:`Первая пуля (${plate.code}): +1 к Защите пластины`});
-      if(shots.some(s=>s.firstEff==='ignore')) fx.push({tone:'acid', text:`Первая пуля (${plate.code}): избыточный урон проигнорирован`});
-      const bi=shots.findIndex(s=>s.brokeNow);
-      if(bi>=0) fx.push({tone:'red', text:`Пластина сломана на выстреле ${bi+1}: Защита −${plate.brk} далее`});
-      if(shots.some(s=>s.sac>0)) fx.push({tone:'amber', text:'«Саркофаг»: жертвенный слой −4 Целостности за каждое ядерное попадание'});
-      if(ammo.shock) fx.push({tone:'red', text:'Шоковая волна: Поверхностный урон идёт и в Здоровье, и в Целостность брони'});
-      if(ammo.emp) fx.push({tone:'violet', text:'ЭМИ: Целостность киберимплантов и электронной брони → 0; «Око Бога» отключён на 1d3 раунда'});
-      if(ammo.id==='plasma') fx.push({tone:'violet', text:'Разрывная плазма: расчёт для ближней дистанции (2 Усуг.)'});
-      if(margin>=4 && state.shots>1) fx.push({tone:'amber', text:'Навылет (Разница ≥ 4): каждый в 1–2 м за целью получает 2 Поверхностного урона'});
-      if(state.shots===10) fx.push({tone:'cyan', text:'Подавление: конус 5 м задевает всех; стрелок получает −1 кубик в следующий ход'});
-      if(state.shots===2 && ammo.id==='shot') fx.push({tone:'cyan', text:'Дуплет (дробовик, ≤ 10 м): +2 урона режима — включите в Рейтинг, если ещё не учтён'});
-      if(plate && plate.id==='ak' && totals.final===0) fx.push({tone:'red', text:'Сломанный «Саркофаг» фонит: носитель получает 1 Поверхностный урон в час'});
-    }
-    return {carrier, plate, ammo, armored, shots, totals, margin, hit, fx};
-  }
-
-  /* ================= АНИМАЦИЯ ЧИСЕЛ ================= */
-  function setNum(el,val,prefix){
-    prefix=prefix||'';
-    const target=val;
-    if(RM){ el._shown=target; el.textContent=prefix+fmtN(target); return; }
-    const from = Number.isFinite(el._shown)?el._shown:0;
-    if(from===target){ el.textContent=prefix+fmtN(target); return; }
-    cancelAnimationFrame(el._raf);
-    const t0=performance.now(), dur=260;
-    const step=t=>{
-      const p=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-p,3);
-      const cur=Math.round(from+(target-from)*e);
-      el._shown=cur; el.textContent=prefix+fmtN(cur);
-      if(p<1) el._raf=requestAnimationFrame(step); else el._shown=target;
-    };
-    el._raf=requestAnimationFrame(step);
-  }
-
-  /* ================= РЕНДЕР РЕЗУЛЬТАТА ================= */
-  function shotGroupHtml(sh,i,open){
-    const badges=[];
-    if(sh.firstEff) badges.push('<span class="badge b-acid">ПЕРВАЯ ПУЛЯ</span>');
-    if(sh.brokeNow) badges.push('<span class="badge b-red">ПОЛОМКА</span>');
-    if(sh.miss) badges.push('<span class="badge b-amber">ПРОМАХ</span>');
-    const head=`<span>ВЫСТРЕЛ ${i+1}</span>${badges.join('')}`;
-    const body=`<ol class="steps">${sh.steps.map(s=>`<li class="t-${s.t}"><span class="sl">${s.l}</span><span class="se">${s.e}</span></li>`).join('')}</ol>`;
-    if(open) return `<div class="shot-group"><div class="sg-head">${head}</div>${body}</div>`;
-    return `<details class="shot-group"><summary class="sg-head">${head}<svg class="sg-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></summary>${body}</details>`;
-  }
-  function render(){
-    const r=compute(); lastResult=r;
-    const {plate,ammo,totals,armored}=r;
-    /* Баннер */
-    const banner=$('banner');
-    banner.className='banner '+(r.hit?'hit':'miss');
-    const icon = r.hit
-            ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg>'
-            : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="m5.5 5.5 13 13"/></svg>';
-    banner.innerHTML=`${icon}<div><div class="b-word">${r.hit?'ПОПАДАНИЕ':'ПРОМАХ'}</div><div class="b-sub">Разница ${fmtN(r.margin)} · ${state.shots} ${plural(state.shots,'выстрел','выстрела','выстрелов')} · ${ammo.code} · ${plate?plate.code+' · '+plate.name:'без брони'}</div></div>`;
-    /* Числа */
-    setNum($('ledMargin'), r.margin);
-    setNum($('ledSurf'), totals.s);
-    setNum($('ledAgg'), totals.a);
-    setNum($('ledWear'), totals.w, totals.w>0?'−':'');
-    setNum($('sumSurf'), totals.s);
-    setNum($('sumAgg'), totals.a);
-    setNum($('sumWear'), totals.w, totals.w>0?'−':'');
-    /* Целостность */
-    const fill=$('integBarFill'), lamp=$('plateLamp');
-    if(armored){
-      const pct=Math.round(totals.final/plate.integ*100);
-      fill.style.width=pct+'%';
-      fill.classList.toggle('broken', totals.final===0);
-      $('integRemain').textContent=`остаток ${totals.final} / ${plate.integ}`;
-      $('wearSub').textContent='потрачено прочности пластины';
-      const st = totals.final===0?['bad','СЛОМАНА']:(totals.final===plate.integ?['ok','ЦЕЛА']:['warn','ИЗНОС']);
-      lamp.className='lamp '+st[0]; lamp.innerHTML=`<u></u><span>${st[1]}</span>`;
-    } else {
-      fill.style.width='0%'; fill.classList.remove('broken');
-      $('integRemain').textContent='броня не надета';
-      $('wearSub').textContent='целостность не расходуется';
-      lamp.className='lamp none'; lamp.innerHTML='<u></u><span>БЕЗ БРОНИ</span>';
-    }
-    /* Эффекты */
-    $('effects').innerHTML=r.fx.map(f=>`<span class="fx fx-${f.tone}"><i class="fx-dot"></i><span>${f.text}</span></span>`).join('');
-    /* Таблица очереди */
-    const bb=$('burstBlock');
-    if(state.shots>1){
-      bb.hidden=false;
-      $('burstInfo').textContent=`${state.shots} ${plural(state.shots,'выстрел','выстрела','выстрелов')} · броня деградирует между выстрелами`;
-      $('burstBody').innerHTML=r.shots.map((sh,i)=>{
-        const ev=[];
-        if(sh.firstEff) ev.push('<span class="badge b-acid">ПЕРВАЯ</span>');
-        if(sh.brokeNow) ev.push('<span class="badge b-red">ПОЛОМКА</span>');
-        if(sh.miss) ev.push('<span class="badge b-amber">ПРОМАХ</span>');
-        return `<tr data-break="${sh.brokeNow?1:0}" class="${sh.miss?'miss':''}"><td>${i+1}</td><td>${armored?sh.A:'—'}</td><td class="c-amber">${sh.healthS}</td><td class="c-red">${sh.healthA}</td><td class="c-cyan">${sh.wear>0?'−'+sh.wear:'0'}</td><td>${armored?sh.integAfter:'—'}</td><td>${ev.join(' ')||'<span class="badge b-dim">—</span>'}</td></tr>`;
-      }).join('');
-      $('playBtn').disabled=!r.hit;
-    } else { bb.hidden=true; }
-    /* Журнал */
-    $('trace').innerHTML=r.shots.map((sh,i)=>shotGroupHtml(sh,i, i===0)).join('');
-    /* Полоса разницы */
-    const ms=$('marginStrip');
-    ms.classList.toggle('miss', r.margin<=0);
-    ms.innerHTML=`РАЗНИЦА = <b>${state.attack} − ${state.defense} = ${fmtN(state.attack-state.defense)}</b>${r.margin!==state.attack-state.defense?` <span>· с патроном → ${fmtN(r.margin)}</span>`:''}${r.margin<=0?' <span>· промах</span>':''}`;
-    /* Мобильная пилюля */
-    $('mJumpTxt').textContent=`ПОВ ${totals.s} · УСГУГ ${totals.a} · БРОНЯ ${armored?'−'+totals.w:'—'}`;
-  }
-
-  /* ================= СИНХРОНИЗАЦИЯ ВВОДА ================= */
-  function modeHintText(){
-    const n=state.shots;
-    if(n===1) return 'Режим: <b>одиночный</b> — автоматам/ПП −1 кубик к пулу (учтите до броска).';
-    if(n===2) return 'Режим: <b>дуплет</b> — только дробовик, ≤ 10 м, −1 кубик, +2 урона.';
-    if(n<=5) return 'Режим: <b>очередь</b> — базовый бросок, расход 3–5 патронов.';
-    if(n<10) return 'Режим: <b>длинная очередь</b> — расход магазина, следите за поломкой пластины.';
-    return 'Режим: <b>подавление</b> — конус 5 м, +2 кубика, задевает всех; −1 кубик стрелку в следующий ход.';
-  }
-  function syncInputs(){
-    for(const k of Object.keys(LIMITS)){
-      const el=$('in-'+k);
-      if(document.activeElement!==el) el.value=state[k];
-    }
-    $('modeHint').innerHTML=modeHintText();
-    document.querySelectorAll('[data-ammo]').forEach(b=>{
-      const on=b.dataset.ammo===state.ammo;
-      b.classList.toggle('on',on); b.setAttribute('aria-pressed',on?'true':'false');
-    });
-    const am=AMMO[state.ammo], ad=$('ammoDesc');
-    ad.className='ammo-desc'+(am.group==='iso'?' iso':'');
-    ad.innerHTML=`<b>${am.name} · ${am.code}.</b> ${am.desc}`;
-    document.querySelectorAll('[data-carrier]').forEach(b=>{
-      const on=b.dataset.carrier===state.carrier;
-      b.classList.toggle('on',on); b.setAttribute('aria-pressed',on?'true':'false');
-    });
-    const noArmor=state.carrier==='none';
-    $('armorDetail').hidden=noArmor;
-    const allowed=noArmor?[]:CARRIERS[state.carrier].plates;
-    document.querySelectorAll('[data-plate]').forEach(b=>{
-      const id=b.dataset.plate, ok=allowed.includes(id);
-      b.disabled=!ok;
-      b.classList.toggle('on', ok && id===state.plate);
-      b.querySelector('.p-lock').hidden=ok;
-      b.title=ok?PLATES[id].name:'Недоступно для этого носителя брони';
-    });
-    if(!noArmor){
-      const p=PLATES[state.plate];
-      const rg=$('integRange');
-      rg.max=p.integ; rg.value=state.integrity;
-      const pct=Math.round(state.integrity/p.integ*100);
-      rg.style.background=`linear-gradient(to right, var(--cyan) ${pct}%, var(--line) ${pct}%)`;
-      $('integVal').textContent=state.integrity;
-      $('integMax').textContent=p.integ;
-      const stEl=$('integState');
-      const st=state.integrity===0?['bad','СЛОМАНА']:(state.integrity===p.integ?['ok','ЦЕЛА']:['warn','ИЗНОС']);
-      stEl.className='i-state '+st[0]; stEl.textContent=st[1];
-      $('firstTgl').setAttribute('aria-checked',state.firstBullet?'true':'false');
-      let hint='';
-      if(!state.firstBullet) hint='';
-      else if(state.integrity<p.integ) hint='Не сработает: пластина изношена или сломана.';
-      else if(!p.first) hint='У этой пластины нет эффекта первой пули.';
-      else hint=p.first==='plus1'?'Сработает на 1-м выстреле: +1 Защиты.':'Сработает на 1-м выстреле: избыточный урон игнорируется.';
-      $('firstHint').textContent=hint;
-      const notes=[];
-      const cp=CARRIERS[state.carrier].passive;
-      if(cp) notes.push(`Носитель · ${CARRIERS[state.carrier].name}: ${cp}`);
-      if(p.passive) notes.push(`Пластина ${p.code}: ${p.passive}`);
-      if(p.special) notes.push(`«Саркофаг»: ${p.special}`);
-      $('passiveNote').innerHTML=notes.map(n=>`<div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v5"/><circle cx="12" cy="18" r=".6" fill="currentColor"/></svg><span>${n}</span></div>`).join('');
-    }
-    document.querySelectorAll('[data-rule]').forEach(b=>{
-      b.setAttribute('aria-checked',state.rules[b.dataset.rule]?'true':'false');
-    });
-    const sb=$('soundBtn');
-    sb.classList.toggle('on',soundOn);
-    sb.setAttribute('aria-pressed',soundOn?'true':'false');
-    $('soundIcOn').hidden=!soundOn; $('soundIcOff').hidden=soundOn;
-    $('soundLbl').textContent=soundOn?'ЗВУК ВКЛ':'ЗВУК ВЫКЛ';
-  }
-
-  /* ================= КОММИТ / ПРОИГРЫВАНИЕ ================= */
-  let pbTimers=[];
-  function stopPlayback(){
-    pbTimers.forEach(clearTimeout); pbTimers=[];
-    document.querySelectorAll('#burstBody tr.playing').forEach(tr=>tr.classList.remove('playing'));
-    const pb=$('playBtn'); pb.classList.remove('busy');
-    pb.innerHTML='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span>ПРОИГРАТЬ</span>';
-  }
-  function playBurst(){
-    stopPlayback();
-    if(!lastResult||!lastResult.hit||state.shots<2) return;
-    const rows=Array.from($('burstBody').querySelectorAll('tr'));
-    const pb=$('playBtn'); pb.classList.add('busy');
-    pb.innerHTML='<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg><span>ИДЁТ…</span>';
-    rows.forEach((row,i)=>{
-      pbTimers.push(setTimeout(()=>{
-        row.classList.add('playing');
-        if(row.dataset.break==='1') sndThud(); else sndTick();
-        if(i===rows.length-1){
-          pbTimers.push(setTimeout(()=>{
-            stopPlayback();
-            const sg=$('summaryGrid'); sg.classList.remove('pulse'); void sg.offsetWidth; sg.classList.add('pulse');
-          },420));
-        }
-      }, i*380));
-    });
-  }
-  function commit(opts){
-    opts=opts||{};
-    stopPlayback();
-    saveState(); syncInputs(); render();
-    const brk=lastResult.shots.some(s=>s.brokeNow);
-    if(!opts.silent) queueTick(brk && !prevBreak);
-    prevBreak=brk;
-  }
-
-  /* ================= ТОСТ ================= */
-  let toastT=null, toastFn=null;
-  function toast(msg, action){
-    clearTimeout(toastT);
-    $('toastMsg').textContent=msg;
-    const act=$('toastAct');
-    if(action){ act.hidden=false; act.textContent=action.label; toastFn=action.fn; }
-    else { act.hidden=true; toastFn=null; }
-    $('toast').classList.add('show');
-    toastT=setTimeout(hideToast,4500);
-  }
-  function hideToast(){ $('toast').classList.remove('show'); toastFn=null; }
-
-  /* ================= ОТЧЁТ ================= */
-  function buildReport(){
-    const r=lastResult||compute();
-    const {plate,ammo,totals,armored}=r;
-    const L=[];
-    L.push('# ОТЧЁТ · ОГНЕСТРЕЛ-КАЛЬКУЛЯТОР · ЗОНА-137');
-    L.push('');
-    L.push(`- Бросок: атака ${state.attack} − защита ${state.defense} → Разница ${r.margin}${r.hit?'':' (ПРОМАХ)'}`);
-    L.push(`- Оружие: Рейтинг ${state.rating} · ${state.shots} ${plural(state.shots,'выстрел','выстрела','выстрелов')} · патрон ${ammo.name} (${ammo.code})`);
-    L.push(`- Броня: ${r.carrier.name}${plate?` · ${plate.name} (${plate.code}) · Целостность ${state.integrity}/${plate.integ} · первая пуля: ${state.firstBullet?'да':'нет'}`:''}`);
-    L.push(`- Правила: ${RULES.map(x=>x.name+' — '+(state.rules[x.key]?'вкл':'выкл')).join('; ')}`);
-    L.push('');
-    L.push(`## ИТОГ: Поверхностный ${totals.s} · Усугублённый ${totals.a} · Износ ${totals.w}${armored?` · Остаток ${totals.final}/${plate.integ}`:''}`);
-    if(r.fx.length){ L.push(''); L.push('Эффекты:'); r.fx.forEach(f=>L.push('- '+f.text)); }
-    L.push(''); L.push('## Журнал вычислений');
-    r.shots.forEach((sh,i)=>{
-      L.push(''); L.push(`### Выстрел ${i+1}${sh.firstEff?' · первая пуля':''}${sh.brokeNow?' · ПОЛОМКА':''}${sh.miss?' · промах':''}`);
-      sh.steps.forEach(s=>L.push(`- ${s.l}: ${s.e}`));
-    });
-    return L.join('\n');
-  }
-  function copyReport(){
-    const txt=buildReport();
-    const done=()=>toast('Отчёт скопирован в буфер обмена');
-    const fallback=()=>{
-      try{
-        const ta=document.createElement('textarea');
-        ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
-        document.body.appendChild(ta); ta.select();
-        const ok=document.execCommand('copy'); document.body.removeChild(ta);
-        ok?done():toast('Не удалось скопировать — скачайте .md');
-      }catch(e){ toast('Не удалось скопировать — скачайте .md'); }
-    };
-    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done,fallback);
-    else fallback();
-  }
-  function downloadReport(){
-    try{
-      const blob=new Blob([buildReport()],{type:'text/markdown;charset=utf-8'});
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a'); a.href=url; a.download='zona137-report.md';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(()=>URL.revokeObjectURL(url),800);
-      toast('Отчёт сохранён: zona137-report.md');
-    }catch(e){ toast('Скачивание недоступно в этом браузере'); }
-  }
-
-  /* ================= ПОСТРОЕНИЕ ДИНАМИЧЕСКОГО DOM ================= */
-  function buildControls(){
-    const chipHtml=a=>`<button type="button" class="chip${a.group==='iso'?' iso':''}" data-ammo="${a.id}" aria-pressed="false"><b>${a.code}</b><small>${a.name}</small></button>`;
-    $('ammoStd').innerHTML=AMMO_STD.map(id=>chipHtml(AMMO[id])).join('');
-    $('ammoIso').innerHTML=AMMO_ISO.map(id=>chipHtml(AMMO[id])).join('');
-    $('plateGrid').innerHTML=PLATE_ORDER.map(id=>{
-      const p=PLATES[id];
-      return `<button type="button" class="plate" data-plate="${id}">
-      <span class="p-code">${p.code}</span><span class="p-name">${p.name}</span>
-      <span class="p-stats">
-        <span class="ps-def"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5z"/></svg>${p.def}</span>
-        <span class="ps-int"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polygon points="12 2 21 7 21 17 12 22 3 17 3 7"/></svg>${p.integ}</span>
-      </span>
-      <svg class="p-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" hidden><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-    </button>`;
-    }).join('');
-    $('rulesBox').innerHTML=RULES.map(r=>`
-    <div class="switch-row">
-      <button type="button" class="switch" data-rule="${r.key}" role="switch" aria-checked="true" aria-label="${r.name}"><i></i></button>
-      <div class="sw-text"><b>${r.name}</b><small>${r.desc}</small></div>
-    </div>`).join('');
-  }
-  function buildReference(){
-    /* Пластины */
-    const firstTxt=p=>p.first==='plus1'?'+1 к Защите':(p.first==='ignore'?'Игнорирование лишнего урона':'—');
-    const cards=PLATE_ORDER.map(id=>{
-      const p=PLATES[id];
-      const feats=['Весь поглощённый урон уходит в Целостность (½ с округлением; дробь/плазма — целиком).'];
-      if(p.passive) feats.push('Пассивная: '+p.passive+'.');
-      if(p.special) feats.push(p.special);
-      return `<div class="rcard${id==='ak'?' vio':''}">
-      <div class="rcard-h"><b>${p.code}</b><span>${p.name}</span>
-        <span class="rstats"><span class="c-amber">ЗАЩ ${p.def}</span><span class="c-cyan">ЦЕЛ ${p.integ}</span></span></div>
-      <dl>
-        <dt>Первая пуля</dt><dd>${firstTxt(p)}</dd>
-        <dt>Округление</dt><dd>${p.round==='math'?'Математическое':'Вниз'}${id==='ak'?' (принято; в базе не задано)':''}</dd>
-        <dt>Поломка</dt><dd><b>−${p.brk} к Защите</b> при Целостности 0</dd>
-        <dt>Носители</dt><dd>${['vest','light','heavy'].filter(c=>CARRIERS[c].plates.includes(id)).map(c=>CARRIERS[c].name).join(', ')}</dd>
-        <dt>Особенности</dt><dd>${feats.join(' ')}</dd>
-      </dl>
-    </div>`;
-    }).join('');
-    const carrierRows=['vest','light','heavy'].map(c=>{
-      const cr=CARRIERS[c];
-      return `<tr><td>${cr.name}</td><td>${cr.plates.map(p=>PLATES[p].code).join(', ')}</td><td>${cr.cap}</td><td>${cr.passive||'—'}</td></tr>`;
-    }).join('');
-    $('tab-plates').innerHTML=`<p class="ref-intro">Бронепластины вставляются в носитель. Защита вычитается из итогового урона; поглощённый урон изнашивает Целостность. При Целостности 0 пластина ломается и теряет часть Защиты.</p>
-    <div class="ref-cards">${cards}</div>
-    <div class="ref-sub">Носители брони</div>
-    <div class="tscroll"><table class="ref-table" style="min-width:640px"><thead><tr><th>Вид брони</th><th>Возможные пластины</th><th>Вместимость</th><th>Особенности</th></tr></thead><tbody>${carrierRows}</tbody></table></div>`;
-    /* Патроны */
-    const ammoCard=id=>{
-      const a=AMMO[id];
-      const tags=[];
-      tags.push(a.type==='agg'?'<span class="badge b-red">УСУГУБЛЁННЫЙ</span>':'<span class="badge b-amber">ПОВЕРХНОСТНЫЙ</span>');
-      if(a.fixed) tags.push('<span class="badge b-dim">ФИКС. УРОН</span>');
-      if(a.nuclear) tags.push('<span class="badge b-acid">ЯДЕРНЫЙ</span>');
-      if(a.pen) tags.push(`<span class="badge b-red">ПРОБИТИЕ ${a.pen}</span>`);
-      if(a.noHalve) tags.push('<span class="badge b-amber">БЕЗ ДЕЛЕНИЯ</span>');
-      return `<div class="rcard${a.group==='iso'?' vio':' amb'}">
-      <div class="rcard-h"><b>${a.code}</b><span>${a.name}</span></div>
-      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px">${tags.join('')}</div>
-      <dl><dt>Эффект</dt><dd>${a.desc}</dd></dl>
-    </div>`;
-    };
-    $('tab-ammo').innerHTML=`<p class="ref-intro">Стандартная линейка и ядерные боеприпасы Изотопного Яруса. Урон патрона добавляется к «Рейтинг + Разница»; спецпатроны с фиксированным уроном используют значения из описания.</p>
-    <div class="ref-sub">Стандартные</div><div class="ref-cards">${AMMO_STD.map(ammoCard).join('')}</div>
-    <div class="ref-sub">Изотопный Ярус</div><div class="ref-cards">${AMMO_ISO.map(ammoCard).join('')}</div>`;
-    /* Дистанции */
-    const distRows=DIST.map(d=>`<tr><td>${d.w}</td><td class="rng-ok">${d.a}</td><td class="rng-mid">${d.b}</td><td class="rng-bad">${d.c}</td><td style="color:var(--mut)">${d.n}</td></tr>`).join('');
-    $('tab-dist').innerHTML=`<p class="ref-intro">Штрафы отражают физиологические пределы: зрение, контроль отдачи, баллистику. Модификаторы применяются к пулу атаки до броска — в калькулятор вводятся уже готовые успехи. Урон дроби (5/4/2) задаётся Рейтингом оружия.</p>
-    <div class="tscroll"><table class="ref-table"><thead><tr><th>Тип оружия</th><th>Ближняя · CQB/улица</th><th>Средняя · поле/просека</th><th>Дальняя · снайпинг</th><th>Реальность</th></tr></thead><tbody>${distRows}</tbody></table></div>`;
-    /* Режимы */
-    const toneColor={acid:'var(--acid)',cyan:'var(--cyan)',amber:'var(--amber)',red:'var(--red)',violet:'var(--violet)'};
-    const modeCards=MODES.map(m=>`<div class="rcard">
-    <div class="rcard-h"><span class="mode-tag" style="color:${toneColor[m.tone]};border:1px solid ${toneColor[m.tone]};background:rgba(0,0,0,.25)">${m.tag}</span><span>${m.name}</span></div>
-    <dl>
-      <dt>Расход</dt><dd>${m.cost}</dd>
-      <dt>Пул</dt><dd><b>${m.pool}</b></dd>
-      <dt>Урон</dt><dd>${m.dmg}</dd>
-      <dt>Особое</dt><dd>${m.note}</dd>
-    </dl>
-  </div>`).join('');
-    $('tab-modes').innerHTML=`<p class="ref-intro">Очередь — база. Одиночный — компромисс ради экономии. Всё остальное — ситуативно. Модификаторы пула применяются до броска; калькулятор считает последствия уже выпавших успехов.</p>
-    <div class="ref-modes">${modeCards}</div>`;
-  }
-
-  /* ================= СОБЫТИЯ ================= */
-  function bindEvents(){
-    /* Степперы */
-    document.querySelectorAll('.step button').forEach(btn=>{
-      btn.addEventListener('click',()=>{
-        const k=btn.dataset.key, dir=+btn.dataset.dir;
-        state[k]=clampInt(state[k]+dir,LIMITS[k][0],LIMITS[k][1]);
-        commit();
-      });
-    });
-    document.querySelectorAll('.step input').forEach(inp=>{
-      inp.addEventListener('input',()=>{
-        const v=parseInt(inp.value,10);
-        if(Number.isFinite(v)){
-          state[inp.dataset.key]=clampInt(v,LIMITS[inp.dataset.key][0],LIMITS[inp.dataset.key][1]);
-          saveState(); render(); stopPlayback(); queueTick(false);
-          /* синхронизируем зависимые подписи, не трогая активное поле */
-          $('modeHint').innerHTML=modeHintText();
-        }
-      });
-      inp.addEventListener('change',()=>{ commit({silent:true}); });
-      inp.addEventListener('blur',()=>{ inp.value=state[inp.dataset.key]; });
-    });
-    /* Патроны */
-    const ammoClick=e=>{
-      const b=e.target.closest('[data-ammo]'); if(!b) return;
-      if(state.ammo===b.dataset.ammo) return;
-      state.ammo=b.dataset.ammo; sndUi(); commit();
-    };
-    $('ammoStd').addEventListener('click',ammoClick);
-    $('ammoIso').addEventListener('click',ammoClick);
-    /* Носитель */
-    $('carrierSeg').addEventListener('click',e=>{
-      const b=e.target.closest('[data-carrier]'); if(!b||state.carrier===b.dataset.carrier) return;
-      state.carrier=b.dataset.carrier;
-      if(state.carrier!=='none'){
-        const allowed=CARRIERS[state.carrier].plates;
-        if(!allowed.includes(state.plate)){ state.plate=allowed[0]; state.integrity=PLATES[state.plate].integ; }
-        else state.integrity=Math.min(state.integrity,PLATES[state.plate].integ);
-      }
-      sndUi(); commit();
-    });
-    /* Пластины */
-    $('plateGrid').addEventListener('click',e=>{
-      const b=e.target.closest('[data-plate]'); if(!b||b.disabled||state.plate===b.dataset.plate) return;
-      state.plate=b.dataset.plate;
-      state.integrity=PLATES[state.plate].integ;
-      sndUi(); commit();
-    });
-    /* Целостность */
-    $('integRange').addEventListener('input',e=>{
-      state.integrity=clampInt(+e.target.value,0,PLATES[state.plate].integ);
-      commit();
-    });
-    /* Первая пуля */
-    $('firstTgl').addEventListener('click',()=>{ state.firstBullet=!state.firstBullet; sndUi(); commit(); });
-    /* Правила */
-    $('rulesBox').addEventListener('click',e=>{
-      const b=e.target.closest('[data-rule]'); if(!b) return;
-      state.rules[b.dataset.rule]=!state.rules[b.dataset.rule];
-      sndUi(); commit();
-    });
-    /* Пресеты / рандом */
-    $('presetRow').addEventListener('click',e=>{
-      const p=e.target.closest('[data-preset]');
-      const rnd=e.target.closest('[data-act="rand"]');
-      if(p){
-        const pr=PRESETS[p.dataset.preset];
-        state=Object.assign(clone(state),clone(pr.s));
-        state=sanitize(state);
-        sndUi(); commit(); toast('Сцена: '+pr.name);
-      } else if(rnd){
-        const carriers=['none','vest','light','heavy'];
-        state.carrier=carriers[Math.floor(Math.random()*carriers.length)];
-        if(state.carrier!=='none'){
-          const allowed=CARRIERS[state.carrier].plates;
-          state.plate=allowed[Math.floor(Math.random()*allowed.length)];
-          state.integrity=Math.floor(Math.random()*(PLATES[state.plate].integ+1));
-        }
-        const all=AMMO_STD.concat(AMMO_ISO);
-        state.ammo=all[Math.floor(Math.random()*all.length)];
-        state.attack=2+Math.floor(Math.random()*7);
-        state.defense=Math.floor(Math.random()*5);
-        state.rating=2+Math.floor(Math.random()*6);
-        state.shots=[1,2,3,5][Math.floor(Math.random()*4)];
-        state.firstBullet=true;
-        sndUi(); commit(); toast('Случайная сцена собрана');
-      }
-    });
-    /* Проигрывание / отчёт */
-    $('playBtn').addEventListener('click',playBurst);
-    $('copyBtn').addEventListener('click',()=>{ sndUi(); copyReport(); });
-    $('dlBtn').addEventListener('click',()=>{ sndUi(); downloadReport(); });
-    /* Сброс с отменой */
-    $('resetBtn').addEventListener('click',()=>{
-      const snap=clone(state);
-      state=clone(DEFAULTS);
-      sndUi(); commit();
-      toast('Параметры сброшены',{label:'ВЕРНУТЬ',fn:()=>{ state=snap; commit(); toast('Параметры восстановлены'); }});
-    });
-    /* Звук */
-    $('soundBtn').addEventListener('click',()=>{
-      soundOn=!soundOn;
-      try{ localStorage.setItem(LS_SND,soundOn?'1':'0'); }catch(e){}
-      if(soundOn){ audio(); if(master) master.gain.value=0.5; sndUi(); }
-      else if(master){ master.gain.value=0; }
-      syncInputs();
-      toast(soundOn?'Звук прибора включён':'Звук прибора выключен');
-    });
-    /* Тост */
-    $('toastAct').addEventListener('click',()=>{ const fn=toastFn; hideToast(); if(fn) fn(); });
-    $('toastClose').addEventListener('click',hideToast);
-    /* Вкладки справочника */
-    $('refTabs').addEventListener('click',e=>{
-      const b=e.target.closest('[data-tab]'); if(!b) return;
-      document.querySelectorAll('#refTabs [data-tab]').forEach(x=>x.setAttribute('aria-selected',x===b?'true':'false'));
-      ['plates','ammo','dist','modes'].forEach(t=>{ $('tab-'+t).hidden=t!==b.dataset.tab; });
-      sndUi();
-    });
-    /* Мобильная пилюля */
-    $('mJump').addEventListener('click',()=>{
-      $('outPanel').scrollIntoView({behavior:RM?'auto':'smooth',block:'start'});
-    });
-    /* Прогрев аудио первым жестом */
-    const warm=()=>{ if(soundOn) audio(); };
-    window.addEventListener('pointerdown',warm,{once:true});
-    window.addEventListener('keydown',warm,{once:true});
-  }
-
-  /* ================= НАБЛЮДАТЕЛИ / ФОН ================= */
-  function initObservers(){
-    if('IntersectionObserver' in window){
-      const nav=new IntersectionObserver(entries=>{
-        entries.forEach(en=>{
-          if(en.isIntersecting){
-            document.querySelectorAll('[data-nav]').forEach(a=>a.classList.toggle('active',a.dataset.nav===en.target.id));
-          }
-        });
-      },{rootMargin:'-40% 0px -55% 0px'});
-      nav.observe($('calc')); nav.observe($('ref'));
-      const rev=new IntersectionObserver(entries=>{
-        entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); rev.unobserve(en.target); } });
-      },{threshold:.08});
-      rev.observe($('refPanel'));
-      const out=new IntersectionObserver(entries=>{
-        entries.forEach(en=>{ $('mJump').classList.toggle('away',en.isIntersecting); });
-      },{threshold:.05});
-      out.observe($('outPanel'));
-    } else {
-      $('refPanel').classList.add('in');
-    }
-  }
-  function initMotes(){
-    if(RM) return;
-    const colors=['rgba(166,255,61,.4)','rgba(255,178,36,.35)','rgba(63,214,255,.35)'];
-    const box=$('motes');
-    let html='';
-    for(let i=0;i<16;i++){
-      const size=(2+Math.random()*2.5).toFixed(1);
-      const left=(Math.random()*100).toFixed(1);
-      const dur=(20+Math.random()*26).toFixed(1);
-      const delay=(-Math.random()*40).toFixed(1);
-      html+=`<span style="left:${left}%;width:${size}px;height:${size}px;background:${colors[i%3]};animation-duration:${dur}s;animation-delay:${delay}s"></span>`;
-    }
-    box.innerHTML=html;
-  }
-
-  /* ================= СТАРТ ================= */
-  buildControls();
-  buildReference();
-  bindEvents();
-  initObservers();
-  initMotes();
-  syncInputs();
-  render();
-  prevBreak=lastResult.shots.some(s=>s.brokeNow);
-</script>
+<script src="assets/js/embedded.js"></script>
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/modules.js"></script>
+<script src="assets/js/render.js"></script>
+<script src="assets/js/app.js"></script>
 </body>
 </html>

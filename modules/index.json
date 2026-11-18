@@ -1,0 +1,8 @@
+{
+  "schema": "irreality.module-registry/1",
+  "modules": [
+    { "id": "irreality-core", "file": "irreality-core.json", "required": true },
+    { "id": "isotope-tier", "file": "isotope-tier.json" },
+    { "id": "example-template", "file": "example-template.json", "example": true }
+  ]
+}
