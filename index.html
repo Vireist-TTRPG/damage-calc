@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Irreality · Калькулятор огнестрельного урона</title>
-  <meta name="description" content="Сеттингонезависимый калькулятор урона для НРИ Irreality: успехи атаки, бронепластины, патроны, поглощение, износ Целостности и полный журнал вычислений. Простой и полный интерфейс, тёмная и светлая темы, модули сеттингов.">
+  <meta name="description" content="Сеттингонезависимый калькулятор урона для НРИ Irreality: липкий пульт параметров, успехи атаки, бронепластины, патроны, поглощение, износ Целостности и полный журнал вычислений. Модули сеттингов подключаются JSON-манифестами.">
   <meta name="color-scheme" content="dark light">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23120a0d'/%3E%3Ccircle cx='32' cy='32' r='19' fill='none' stroke='%23b0343d' stroke-width='4'/%3E%3Cpath d='M32 5v14M32 45v14M5 32h14M45 32h14' stroke='%23e0454f' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%23590016' stroke='%23ff6b70' stroke-width='3'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,11 +16,8 @@
 
 <div class="bg" aria-hidden="true">
   <div class="bg-mesh"></div>
-  <div class="bg-glow g1"></div>
-  <div class="bg-glow g2"></div>
-  <div class="bg-glow g3"></div>
-  <div class="bg-grid"></div>
-  <div class="bg-grain"></div>
+  <div class="bg-glow g1"></div><div class="bg-glow g2"></div><div class="bg-glow g3"></div>
+  <div class="bg-grid"></div><div class="bg-grain"></div>
 </div>
 
 <a class="skip" href="#calc">Перейти к расчёту</a>
@@ -34,17 +31,15 @@
     </svg>
     <span class="brand-txt"><b>IRREALITY</b><small>КАЛЬКУЛЯТОР ОГНЕСТРЕЛА</small></span>
   </a>
-
   <nav class="nav" id="navLinks" aria-label="Разделы">
     <a href="#calc" data-nav="calc" class="on">Расчёт</a>
     <a href="#log" data-nav="log">Журнал</a>
     <a href="#ref" data-nav="ref" class="adv">Справочник</a>
     <a href="#format" data-nav="format" class="adv">Формат модуля</a>
   </nav>
-
   <div class="hdr-actions">
     <div class="uiseg" id="uiSeg" role="group" aria-label="Режим интерфейса">
-      <button type="button" data-act="ui-mode" data-value="simple" aria-pressed="true" title="Простой интерфейс: только главное">
+      <button type="button" data-act="ui-mode" data-value="simple" aria-pressed="true" title="Простой интерфейс: шесть параметров и результат">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h6"/></svg>
         <span class="uiseg-lbl">ПРОСТОЙ</span>
       </button>
@@ -53,17 +48,14 @@
         <span class="uiseg-lbl">ПОЛНЫЙ</span>
       </button>
     </div>
-
     <button class="hbtn" id="themeBtn" data-act="theme" title="Переключить тему">
       <svg id="themeIcDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
       <svg id="themeIcLight" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" hidden><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg>
       <span class="hbtn-lbl" id="themeLbl">ТЁМНАЯ</span>
     </button>
-
     <button class="hbtn accent" id="modBtn" data-act="gate-open" title="Конфигурация модулей">
       <span class="dot"></span><span class="hbtn-lbl">МОДУЛИ</span><b id="modCount">2</b>
     </button>
-
     <button class="hbtn" id="resetBtn" data-act="reset" title="Сбросить параметры расчёта">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
       <span class="hbtn-lbl">СБРОС</span>
@@ -73,158 +65,140 @@
 
 <main>
 
-  <!-- ================= РАСЧЁТ ================= -->
   <section id="calc">
     <div class="masthead">
-      <div class="mh-left">
-        <div class="kicker">IRREALITY · СЕТТИНГОНЕЗАВИСИМАЯ СИСТЕМА · <b>ОГНЕСТРЕЛ</b></div>
-        <h1>Расчёт <span>урона</span><br>и износа брони</h1>
-        <p class="lede lede-full adv">Успехи атаки → Разница → Рейтинг оружия → поглощение пластиной. Остаток уходит в здоровье как <b>Усугублённый</b>, поглощённое — в <b>Целостность</b> один раз за обстрел. Ниже — каждое вычисление.</p>
-        <p class="lede lede-simple simple-only">Введите <b>успехи атаки и защиты</b>, задайте <b>Рейтинг оружия</b>, выберите <b>патрон</b> и <b>пластину</b>. Прибор посчитает урон в здоровье и износ брони.</p>
-        <div class="mh-mods" id="activeModChips"></div>
+      <div class="kicker">IRREALITY · СЕТТИНГОНЕЗАВИСИМАЯ СИСТЕМА · <b>ОГНЕСТРЕЛ</b></div>
+      <h1>Расчёт <span>урона</span> и износа брони</h1>
+      <p class="lede lede-full adv">Пульт закреплён под шапкой: меняйте параметры в любой момент, без прокрутки. Остаток сверх брони уходит в здоровье как <b>Усугублённый</b>, поглощённое — в <b>Целостность</b> один раз за обстрел.</p>
+      <p class="lede lede-simple simple-only">Шесть параметров на пульте — и результат сразу под ним. Пулы, дистанции, режимы и тонкие правила живут в полном режиме.</p>
+      <div class="mh-mods" id="activeModChips"></div>
+    </div>
+
+    <div id="deckSentinel" aria-hidden="true"></div>
+
+    <!-- ===== ЛИПКИЙ ПУЛЬТ ===== -->
+    <div class="deck" id="deck">
+      <div class="deck-grid">
+        <div class="dcell">
+          <label for="in-attack">Атака · успехи</label>
+          <div class="stepper t-agg">
+            <button type="button" data-act="step" data-key="attack" data-dir="-1" aria-label="Уменьшить успехи атаки">−</button>
+            <input id="in-attack" type="number" inputmode="numeric" min="0" max="30" data-key="attack" value="5">
+            <button type="button" data-act="step" data-key="attack" data-dir="1" aria-label="Увеличить успехи атаки">+</button>
+          </div>
+        </div>
+        <div class="dcell">
+          <label for="in-defense">Защита · успехи</label>
+          <div class="stepper t-steel">
+            <button type="button" data-act="step" data-key="defense" data-dir="-1" aria-label="Уменьшить успехи защиты">−</button>
+            <input id="in-defense" type="number" inputmode="numeric" min="0" max="30" data-key="defense" value="2">
+            <button type="button" data-act="step" data-key="defense" data-dir="1" aria-label="Увеличить успехи защиты">+</button>
+          </div>
+        </div>
+        <div class="dcell">
+          <label for="in-rating">Рейтинг оружия</label>
+          <div class="stepper t-agg prefixed">
+            <button type="button" data-act="step" data-key="rating" data-dir="-1" aria-label="Рейтинг минус">−</button>
+            <span class="prefix">+</span>
+            <input id="in-rating" type="number" inputmode="numeric" min="0" max="15" data-key="rating" value="4">
+            <button type="button" data-act="step" data-key="rating" data-dir="1" aria-label="Рейтинг плюс">+</button>
+          </div>
+        </div>
+        <div class="dcell">
+          <label for="d-ammo">Патрон</label>
+          <select id="d-ammo" data-key="ammoId"></select>
+        </div>
+        <div class="dcell">
+          <label for="d-armor">Броня · пластина</label>
+          <select id="d-armor" data-key="armorCombo"></select>
+        </div>
+        <div class="dcell">
+          <label for="d-integrity">Целостность · <b><span id="d-integVal">6</span>/<span id="d-integMax">6</span></b><span class="state-tag ok" id="d-integState">ЦЕЛА</span></label>
+          <div class="dinteg"><input type="range" id="d-integrity" min="0" max="6" step="1" value="6" data-key="integrityStart" aria-label="Целостность пластины"></div>
+        </div>
+        <div class="dcell adv">
+          <label for="d-mode">Режим стрельбы</label>
+          <select id="d-mode" data-key="modeId"></select>
+        </div>
+        <div class="dcell adv">
+          <label for="d-dist">Дистанция</label>
+          <select id="d-dist" data-key="distanceBand"></select>
+        </div>
+        <div class="dcell adv">
+          <label for="d-class">Тип оружия</label>
+          <select id="d-class" data-key="weaponClassId"></select>
+        </div>
+        <div class="dcell adv">
+          <label for="d-cover">Укрытие цели</label>
+          <select id="d-cover" data-key="coverId"></select>
+        </div>
       </div>
-      <div class="mh-strip adv">
-        <div class="ms-cell"><small>РАЗНИЦА</small><b id="mMargin">0</b><i>атака − защита</i></div>
-        <div class="ms-cell t-agg"><small>ИТОГОВЫЙ УРОН</small><b id="mDamage">0</b><i>до брони</i></div>
-        <div class="ms-cell t-steel"><small>ПОГЛОЩЕНО</small><b id="mAbsorbed">0</b><i>пластиной</i></div>
-        <div class="ms-cell t-steel"><small>ЦЕЛОСТНОСТЬ</small><b id="mIntegrity">—</b><i>после обстрела</i></div>
+      <div class="deck-foot">
+        <div class="margin-read" id="marginRead"></div>
+        <span class="pool-info adv" id="deckPoolInfo"></span>
+        <button type="button" class="btn adv" data-act="roll" data-pool="both" title="Бросить оба пула и применить успехи">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/></svg>
+          Бросить
+        </button>
+        <button type="button" class="btn ghost adv" data-act="deck-pool" id="deckPoolBtn" title="Открыть конструктор пула">Пул…</button>
+        <button type="button" class="btn primary" data-act="log-add" title="Зафиксировать обстрел в журнале — Целостность перейдёт дальше">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Обстрел в журнал
+        </button>
       </div>
     </div>
 
+    <!-- ===== РЕЗУЛЬТАТ + ДЕТАЛИ ===== -->
     <div class="workbench">
 
-      <!-- ---------- ВВОД ---------- -->
-      <div class="col-controls">
-
-        <div class="simple-card simple-only">
-          <div class="sc-head">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.4"/></svg>
-            <b>Простой режим</b>
-          </div>
-          <p>Пять параметров и результат. Пулы кубиков, дистанции, режимы стрельбы, укрытия и тонкие правила живут в полном режиме — переключатель в шапке.</p>
-          <div class="sc-context" id="simpleCtx"></div>
-          <button type="button" class="btn" data-act="ui-mode" data-value="full">Открыть полный режим</button>
-        </div>
-
-        <div class="block">
-          <div class="block-head"><span class="bh-idx">01</span><h3>Бросок</h3><span class="bh-note">d10 · 6+ успех · 10 = 2</span></div>
-          <div class="grid-2">
-            <div class="field">
-              <label for="in-attack">Успехи атаки</label>
-              <div class="stepper big t-agg">
-                <button type="button" data-act="step" data-key="attack" data-dir="-1" aria-label="Уменьшить успехи атаки">−</button>
-                <input id="in-attack" type="number" inputmode="numeric" min="0" max="30" data-key="attack" value="5">
-                <button type="button" data-act="step" data-key="attack" data-dir="1" aria-label="Увеличить успехи атаки">+</button>
-              </div>
+      <div class="col-results" id="results">
+        <div class="res-inner">
+          <div class="res-head"><span class="rh-dot"></span>РЕЗУЛЬТАТ ОБСТРЕЛА<small>живой пересчёт</small></div>
+          <div class="verdict" id="verdict"></div>
+          <div class="readout">
+            <div class="ro t-agg"><small>УСУГУБЛЁННЫЙ → ЗДОРОВЬЕ</small><b id="roAgg">0</b>
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.6 14 8l6.4-2-4 5.4 5.6 3.4-6.6.8 1 6.6-4.4-5-4.4 5 1-6.6-6.6-.8L7.6 11.4l-4-5.4L10 8z"/></svg>
             </div>
-            <div class="field">
-              <label for="in-defense">Успехи защиты цели</label>
-              <div class="stepper big t-steel">
-                <button type="button" data-act="step" data-key="defense" data-dir="-1" aria-label="Уменьшить успехи защиты">−</button>
-                <input id="in-defense" type="number" inputmode="numeric" min="0" max="30" data-key="defense" value="2">
-                <button type="button" data-act="step" data-key="defense" data-dir="1" aria-label="Увеличить успехи защиты">+</button>
-              </div>
+            <div class="ro t-surf"><small>ПОВЕРХНОСТНЫЙ → ЗДОРОВЬЕ</small><b id="roSurf">0</b>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="2 12 6 12 9 5 13 19 16 12 22 12"/></svg>
+            </div>
+            <div class="ro t-steel"><small>ИЗНОС ЦЕЛОСТНОСТИ</small><b id="roWear">0</b>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 21 7 21 17 12 22 3 17 3 7"/></svg>
             </div>
           </div>
-          <div class="margin-read" id="marginRead"></div>
-
-          <div class="pool adv">
-            <div class="pool-head"><b>Конструктор пула</b><span>любые атрибуты, навыки и модификаторы</span></div>
-
-            <div class="pool-side">
-              <div class="ps-head"><i class="a"></i>ПУЛ АТАКИ<b id="poolAttackTotal">0</b></div>
-              <div class="prows" id="poolAttackRows"></div>
-              <div class="ps-tools">
-                <button type="button" class="btn tiny" data-act="pool-add" data-side="attack">+ компонент</button>
-                <button type="button" class="btn tiny ghost" data-act="pool-preset" data-side="attack" data-preset="0">Меткость + Ловкость</button>
-                <button type="button" class="btn tiny ghost" data-act="pool-preset" data-side="attack" data-preset="1">Меткость + Смекалка</button>
-              </div>
-            </div>
-
-            <div class="pool-side">
-              <div class="ps-head"><i class="d"></i>ПУЛ ЗАЩИТЫ<b id="poolDefenseTotal">0</b></div>
-              <div class="prows" id="poolDefenseRows"></div>
-              <div class="ps-tools">
-                <button type="button" class="btn tiny" data-act="pool-add" data-side="defense">+ компонент</button>
-                <button type="button" class="btn tiny ghost" data-act="pool-preset" data-side="defense" data-preset="0">Ловкость + Атлетика</button>
-                <button type="button" class="btn tiny ghost" data-act="pool-preset" data-side="defense" data-preset="1">Выносливость + Атлетика</button>
-              </div>
-            </div>
-
-            <div class="pool-read" id="poolRead"></div>
-            <div class="pool-actions">
-              <button type="button" class="btn primary" data-act="roll" data-pool="both">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/></svg>
-                Бросить оба
-              </button>
-              <button type="button" class="btn" data-act="roll" data-pool="attack">Атака</button>
-              <button type="button" class="btn" data-act="roll" data-pool="defense">Защита</button>
-              <label class="check"><input type="checkbox" id="autoApply" data-key="autoApply" checked><span>Применять успехи</span></label>
-            </div>
-            <div class="dice-trays" id="diceTrays"></div>
+          <div class="split" id="splitBox"></div>
+          <div class="gauge" id="gaugeBox"></div>
+          <div class="flags" id="flagBox"></div>
+          <div class="trace-wrap">
+            <div class="trace-head">ЖУРНАЛ ВЫЧИСЛЕНИЙ<small id="traceCount"></small></div>
+            <ol class="trace" id="traceBox"></ol>
           </div>
-        </div>
-
-        <div class="block">
-          <div class="block-head"><span class="bh-idx">02</span><h3>Оружие</h3><span class="bh-note">Рейтинг пишется с «+»</span></div>
-          <div class="wrow">
-            <div class="field">
-              <label for="in-rating">Рейтинг оружия</label>
-              <div class="stepper big t-agg prefixed">
-                <button type="button" data-act="step" data-key="rating" data-dir="-1" aria-label="Рейтинг минус">−</button>
-                <span class="prefix">+</span>
-                <input id="in-rating" type="number" inputmode="numeric" min="0" max="15" data-key="rating" value="4">
-                <button type="button" data-act="step" data-key="rating" data-dir="1" aria-label="Рейтинг плюс">+</button>
-              </div>
-            </div>
-            <div class="field adv">
-              <label for="classSelect">Тип оружия</label>
-              <select id="classSelect" data-key="weaponClassId"></select>
-            </div>
-          </div>
-          <div class="adv">
-            <div class="rating-note sub-note" id="ratingNote"></div>
-            <div class="field">
-              <label>Дистанция</label>
-              <div class="seg seg-3" id="distSeg" role="group" aria-label="Дистанция"></div>
-            </div>
-            <div class="field" id="weaponSelectWrap" hidden>
-              <label for="weaponSelect">Ствол из базы модуля</label>
-              <select id="weaponSelect" data-key="weaponId"></select>
+          <div class="res-actions">
+            <div class="res-actions-row">
+              <button type="button" class="btn" data-act="copy">Копировать отчёт</button>
+              <button type="button" class="btn adv" data-act="md">Скачать .md</button>
+              <button type="button" class="btn adv" data-act="print">Печать</button>
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="block adv">
-          <div class="block-head"><span class="bh-idx">03</span><h3>Режим стрельбы</h3><span class="bh-note">один обстрел = один расчёт</span></div>
-          <div class="chips-mode" id="modeChips"></div>
-          <div class="mode-extra" id="aimWrap" hidden>
-            <div class="field">
-              <label for="in-aimTurns">Ходов прицеливания · <b id="aimVal">0</b></label>
-              <input type="range" id="in-aimTurns" min="0" max="3" step="1" value="0" data-key="aimTurns">
-              <div class="range-marks"><span>0</span><span>1</span><span>2</span><span>3</span></div>
-            </div>
-            <div class="switch-row">
-              <button type="button" class="switch" id="headshotTgl" data-act="toggle" data-key="headshot" role="switch" aria-checked="false" aria-label="Прицел в голову"><i></i></button>
-              <div class="sw-txt"><b>Прицел в голову</b><small>−2 кубика к броску, +2 к итоговому урону.</small></div>
-            </div>
-          </div>
-          <div class="mode-note" id="modeNote"></div>
-        </div>
+      <aside class="details" id="detailsPanel" aria-label="Детали и тонкая настройка">
+        <div class="dtabs" id="detailTabs" role="tablist"></div>
 
-        <div class="block">
-          <div class="block-head"><span class="bh-idx">04</span><h3>Патрон</h3><span class="bh-note" id="ammoCount"></span></div>
+        <div class="dpane" id="pane-ammo" role="tabpanel">
+          <div class="pane-head">Патрон<small id="ammoCount"></small></div>
           <div id="ammoGroups"></div>
           <div class="ammo-desc" id="ammoDesc"></div>
         </div>
 
-        <div class="block">
-          <div class="block-head"><span class="bh-idx">05</span><h3>Броня цели</h3><span class="bh-note">носитель → пластина</span></div>
+        <div class="dpane" id="pane-armor" role="tabpanel" hidden>
+          <div class="pane-head">Броня цели<small>носитель → пластина</small></div>
           <div class="seg seg-4" id="carrierSeg" role="group" aria-label="Носитель брони"></div>
           <div id="armorBody">
             <div class="plate-grid" id="plateGrid"></div>
             <div class="field integ">
-              <label for="in-integrity">Целостность в начале серии · <b><span id="integVal">6</span> / <span id="integMax">6</span></b><span class="state-tag" id="integState">ЦЕЛА</span></label>
+              <label for="in-integrity">Целостность в начале серии · <b><span id="integVal">6</span> / <span id="integMax">6</span></b><span class="state-tag ok" id="integState">ЦЕЛА</span></label>
               <input type="range" id="in-integrity" min="0" max="6" step="1" value="6" data-key="integrityStart">
               <div class="range-marks"><span class="bad">0 · ПОЛОМКА</span><span>МАКС</span></div>
             </div>
@@ -241,65 +215,80 @@
           </div>
         </div>
 
-        <div class="block adv">
-          <div class="block-head"><span class="bh-idx">06</span><h3>Укрытие цели</h3><span class="bh-note">кубики к пулу защиты</span></div>
-          <div class="seg seg-4" id="coverSeg" role="group" aria-label="Укрытие"></div>
-          <div class="sub-note" id="coverNote"></div>
+        <div class="dpane adv" id="pane-fire" role="tabpanel" hidden>
+          <div class="pane-head">Обстрел<small>режим · дистанция · оружие</small></div>
+          <div class="chips-mode" id="modeChips"></div>
+          <div class="mode-extra" id="aimWrap" hidden>
+            <div class="field">
+              <label for="in-aimTurns">Ходов прицеливания · <b id="aimVal">0</b></label>
+              <input type="range" id="in-aimTurns" min="0" max="3" step="1" value="0" data-key="aimTurns">
+              <div class="range-marks"><span>0</span><span>1</span><span>2</span><span>3</span></div>
+            </div>
+            <div class="switch-row">
+              <button type="button" class="switch" id="headshotTgl" data-act="toggle" data-key="headshot" role="switch" aria-checked="false" aria-label="Прицел в голову"><i></i></button>
+              <div class="sw-txt"><b>Прицел в голову</b><small>−2 кубика к броску, +2 к итоговому урону.</small></div>
+            </div>
+          </div>
+          <div class="mode-note" id="modeNote"></div>
+          <div class="pane-sep"></div>
+          <div class="field">
+            <label>Дистанция</label>
+            <div class="seg seg-3" id="distSeg" role="group" aria-label="Дистанция"></div>
+          </div>
+          <div class="field">
+            <label for="classSelect">Тип оружия</label>
+            <select id="classSelect" data-key="weaponClassId"></select>
+          </div>
+          <div class="field" id="weaponSelectWrap" hidden>
+            <label for="weaponSelect">Ствол из базы модуля</label>
+            <select id="weaponSelect" data-key="weaponId"></select>
+          </div>
+          <div class="sub-note" id="ratingNote"></div>
         </div>
 
-        <div class="block adv">
-          <div class="block-head"><span class="bh-idx">07</span><h3>Правила</h3><span class="bh-note">ядро + модули</span></div>
+        <div class="dpane adv" id="pane-rules" role="tabpanel" hidden>
+          <div class="pane-head">Укрытие и правила<small>ядро + модули</small></div>
+          <div class="seg seg-4" id="coverSeg" role="group" aria-label="Укрытие"></div>
+          <div class="sub-note" id="coverNote"></div>
+          <div class="pane-sep"></div>
           <div id="rulesBox"></div>
         </div>
 
-      </div>
-
-      <!-- ---------- ВЫВОД ---------- -->
-      <div class="col-results" id="results">
-        <div class="res-inner">
-          <div class="res-head"><span class="rh-dot"></span>РЕЗУЛЬТАТ ОБСТРЕЛА<small>живой пересчёт</small></div>
-
-          <div class="verdict" id="verdict"></div>
-
-          <div class="readout">
-            <div class="ro t-agg"><small>УСУГУБЛЁННЫЙ → ЗДОРОВЬЕ</small><b id="roAgg">0</b>
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.6 14 8l6.4-2-4 5.4 5.6 3.4-6.6.8 1 6.6-4.4-5-4.4 5 1-6.6-6.6-.8L7.6 11.4l-4-5.4L10 8z"/></svg>
-            </div>
-            <div class="ro t-surf"><small>ПОВЕРХНОСТНЫЙ → ЗДОРОВЬЕ</small><b id="roSurf">0</b>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="2 12 6 12 9 5 13 19 16 12 22 12"/></svg>
-            </div>
-            <div class="ro t-steel"><small>ИЗНОС ЦЕЛОСТНОСТИ</small><b id="roWear">0</b>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 21 7 21 17 12 22 3 17 3 7"/></svg>
+        <div class="dpane adv" id="pane-pool" role="tabpanel" hidden>
+          <div class="pane-head">Конструктор пула<small>любые атрибуты и навыки</small></div>
+          <div class="pool-side">
+            <div class="ps-head"><i class="a"></i>ПУЛ АТАКИ<b id="poolAttackTotal">0</b></div>
+            <div class="prows" id="poolAttackRows"></div>
+            <div class="ps-tools">
+              <button type="button" class="btn tiny" data-act="pool-add" data-side="attack">+ компонент</button>
+              <button type="button" class="btn tiny ghost" data-act="pool-preset" data-side="attack" data-preset="0">Меткость + Ловкость</button>
+              <button type="button" class="btn tiny ghost" data-act="pool-preset" data-side="attack" data-preset="1">Меткость + Смекалка</button>
             </div>
           </div>
-
-          <div class="split" id="splitBox"></div>
-          <div class="gauge" id="gaugeBox"></div>
-          <div class="flags" id="flagBox"></div>
-
-          <div class="trace-wrap">
-            <div class="trace-head">ЖУРНАЛ ВЫЧИСЛЕНИЙ<small id="traceCount"></small></div>
-            <ol class="trace" id="traceBox"></ol>
-          </div>
-
-          <div class="res-actions">
-            <button type="button" class="btn primary wide" data-act="log-add" id="addLogBtn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-              Зафиксировать обстрел
-            </button>
-            <div class="res-actions-row">
-              <button type="button" class="btn" data-act="copy">Копировать отчёт</button>
-              <button type="button" class="btn adv" data-act="md">Скачать .md</button>
-              <button type="button" class="btn adv" data-act="print">Печать</button>
+          <div class="pool-side">
+            <div class="ps-head"><i class="d"></i>ПУЛ ЗАЩИТЫ<b id="poolDefenseTotal">0</b></div>
+            <div class="prows" id="poolDefenseRows"></div>
+            <div class="ps-tools">
+              <button type="button" class="btn tiny" data-act="pool-add" data-side="defense">+ компонент</button>
+              <button type="button" class="btn tiny ghost" data-act="pool-preset" data-side="defense" data-preset="0">Ловкость + Атлетика</button>
+              <button type="button" class="btn tiny ghost" data-act="pool-preset" data-side="defense" data-preset="1">Выносливость + Атлетика</button>
             </div>
           </div>
+          <div class="pool-read" id="poolRead"></div>
+          <div class="pool-actions">
+            <button type="button" class="btn primary" data-act="roll" data-pool="both">Бросить оба</button>
+            <button type="button" class="btn" data-act="roll" data-pool="attack">Атака</button>
+            <button type="button" class="btn" data-act="roll" data-pool="defense">Защита</button>
+            <label class="check"><input type="checkbox" id="autoApply" data-key="autoApply" checked><span>Применять успехи</span></label>
+          </div>
+          <div class="dice-trays" id="diceTrays"></div>
         </div>
-      </div>
+      </aside>
 
     </div>
   </section>
 
-  <!-- ================= ЖУРНАЛ ================= -->
+  <!-- ===== ЖУРНАЛ ===== -->
   <section id="log">
     <div class="sec-head">
       <div><div class="kicker">СЕРИЯ ОБСТРЕЛОВ ПО ОДНОЙ ЦЕЛИ</div><h2>Журнал</h2></div>
@@ -330,11 +319,11 @@
     <div class="log-empty" id="logEmpty">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M15 4v5h5"/><path d="M8 13h8M8 17h5"/></svg>
       <b>Серия пуста</b>
-      <span>Настройте обстрел и нажмите «Зафиксировать обстрел» — запись появится здесь, а Целостность брони перейдёт к следующему выстрелу.</span>
+      <span>Настройте обстрел на пульте и нажмите «Обстрел в журнал» — запись появится здесь, а Целостность брони перейдёт к следующему выстрелу.</span>
     </div>
   </section>
 
-  <!-- ================= СПРАВОЧНИК ================= -->
+  <!-- ===== СПРАВОЧНИК ===== -->
   <section id="ref" class="adv">
     <div class="sec-head">
       <div><div class="kicker">БАЗА ЯДРА И ПОДКЛЮЧЁННЫХ МОДУЛЕЙ</div><h2>Справочник</h2></div>
@@ -350,13 +339,12 @@
     <div class="ref-pane" id="refPane" role="tabpanel"></div>
   </section>
 
-  <!-- ================= ФОРМАТ МОДУЛЯ ================= -->
+  <!-- ===== ФОРМАТ МОДУЛЯ ===== -->
   <section id="format" class="adv">
     <div class="sec-head">
       <div><div class="kicker">РАСШИРЕНИЕ СИСТЕМЫ</div><h2>Формат модуля</h2></div>
       <p>Модуль — один JSON-манифест в папке <code>/modules</code>. Добавьте файл, впишите его в реестр — он появится в конфигурации при входе.</p>
     </div>
-
     <div class="fmt-grid">
       <div class="fmt-card">
         <h3>1 · Структура проекта</h3>
@@ -380,7 +368,6 @@
           <button type="button" class="btn" data-act="gate-open">Конфигурация модулей</button>
         </div>
       </div>
-
       <div class="fmt-card">
         <h3>3 · Поля манифеста</h3>
         <table class="fmt-table">
@@ -388,21 +375,20 @@
           <tr><td><code>id</code>, <code>namespace</code></td><td>Уникальные. Пространство имён даёт идентификаторы вида <code>iso:sarcophagus</code> и защищает от конфликтов.</td></tr>
           <tr><td><code>kind</code></td><td><code>core</code> — ядро (нельзя выключить), <code>module</code> — обычный модуль.</td></tr>
           <tr><td><code>requires</code></td><td>Массив id обязательных зависимостей. Без них модуль не включится.</td></tr>
-          <tr><td><code>attributes</code>, <code>skills</code></td><td>Словари для конструктора пула. Модуль может добавить свои атрибуты и навыки — они появятся в выпадающих списках.</td></tr>
-          <tr><td><code>damageTypes</code></td><td>Типы урона: <code>id</code>, <code>label</code>, <code>short</code>, <code>tone</code>. Формат универсален.</td></tr>
+          <tr><td><code>attributes</code>, <code>skills</code></td><td>Словари конструктора пула. Модуль может добавить свои — они появятся в выпадающих списках.</td></tr>
+          <tr><td><code>damageTypes</code></td><td>Типы урона: <code>id</code>, <code>label</code>, <code>short</code>, <code>tone</code>.</td></tr>
           <tr><td><code>plates</code></td><td><code>defense</code>, <code>integrity</code>, <code>rounding</code>, <code>breakPenalty</code>, <code>firstShot</code>, <code>passive</code>, <code>effects</code>.</td></tr>
-          <tr><td><code>carriers</code>, <code>carrierExtensions</code></td><td>Носители и расширение чужих носителей: <code>target: "core:heavy"</code>, <code>addPlates</code>.</td></tr>
+          <tr><td><code>carriers</code>, <code>carrierExtensions</code></td><td>Носители и расширение чужих носителей: <code>target</code>, <code>addPlates</code>.</td></tr>
           <tr><td><code>ammo</code></td><td><code>damageType</code>, <code>damageBonus</code>, <code>damageVsArmor</code>, <code>attackDice</code>, <code>armorPierce</code>, <code>ignoreWearDivision</code>, <code>fixedDamage</code>, <code>surfaceBypass</code>, <code>tags</code>, <code>effects</code>.</td></tr>
-          <tr><td><code>weapons</code>, <code>weaponClasses</code>, <code>fireModes</code>, <code>covers</code></td><td>База стволов, таблицы дистанций, режимы и укрытия. Тип оружия задаётся без калибра — калибр живёт в патроне.</td></tr>
+          <tr><td><code>weapons</code>, <code>weaponClasses</code>, <code>fireModes</code>, <code>covers</code></td><td>База стволов, дистанции, режимы, укрытия. Тип оружия — без калибра.</td></tr>
           <tr><td><code>rules</code></td><td>Настраиваемые правила: <code>toggle</code>, <code>number</code>, <code>select</code> + <code>default</code>, <code>dependsOn</code>.</td></tr>
           </tbody>
         </table>
-
         <h3>4 · Эффекты и условия</h3>
         <table class="fmt-table">
           <tbody>
           <tr><td><code>reduceDamage</code></td><td><code>damageType</code>, <code>amount</code>, <code>min</code>, <code>rule</code>, <code>minRule</code>.</td></tr>
-          <tr><td><code>extraWear</code></td><td><code>amount</code> / <code>rule</code> — дополнительный износ Целостности за обстрел.</td></tr>
+          <tr><td><code>extraWear</code></td><td><code>amount</code> / <code>rule</code> — дополнительный износ за обстрел.</td></tr>
           <tr><td><code>zeroIntegrity</code></td><td><code>target</code> — обнуление Целостности указанного слоя.</td></tr>
           <tr><td><code>note</code></td><td><code>text</code> — предупреждение мастеру.</td></tr>
           <tr><td><code>when</code></td><td>Условия: <code>ammoTag</code>, <code>ammoId</code>, <code>armored</code>, <code>broken</code>.</td></tr>
@@ -421,29 +407,47 @@
   <small>Все вычисления выполняются локально в браузере. Параметры, тема, режим интерфейса и серия обстрелов сохраняются между сессиями.</small>
 </footer>
 
-<button class="jump" id="jumpPill" type="button" data-act="jump">
-  <span id="jumpTxt">УСУГ 0 · ПОВ 0</span>
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
-</button>
+<!-- ===== КАРМАННЫЙ ДОК (мобильные) ===== -->
+<div class="dock" id="dock">
+  <div class="dock-cell">
+    <small>АТАКА</small>
+    <div class="stepper sm t-agg">
+      <button type="button" data-act="step" data-key="attack" data-dir="-1" aria-label="Атака минус">−</button>
+      <span class="dock-val" id="dockAttack">5</span>
+      <button type="button" data-act="step" data-key="attack" data-dir="1" aria-label="Атака плюс">+</button>
+    </div>
+  </div>
+  <div class="dock-cell">
+    <small>ЗАЩИТА</small>
+    <div class="stepper sm t-steel">
+      <button type="button" data-act="step" data-key="defense" data-dir="-1" aria-label="Защита минус">−</button>
+      <span class="dock-val" id="dockDefense">2</span>
+      <button type="button" data-act="step" data-key="defense" data-dir="1" aria-label="Защита плюс">+</button>
+    </div>
+  </div>
+  <button type="button" class="dock-res" data-act="jump" title="К результату">
+    <span id="jumpTxt">УСУГ 0 · ПОВ 0</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+  </button>
+</div>
 
-<!-- ================= КОНФИГУРАЦИЯ ================= -->
+<!-- ===== КОНФИГУРАЦИЯ ===== -->
 <div class="gate" id="gate" hidden>
   <div class="gate-inner">
     <div class="gate-top">
       <div class="gate-title">
         <div class="kicker">КОНФИГУРАЦИЯ · ПЕРЕД ВХОДОМ</div>
         <h2>Модули <span>Irreality</span></h2>
-        <p>Ядро системы загружается всегда. Подключите модули сеттингов — их пластины, патроны, стволы и правила появятся в калькуляторе и справочнике. Порядок загрузки меняется перетаскиванием.</p>
+        <p>Ядро системы загружается всегда. Подключите модули сеттингов — их пластины, патроны, стволы и правила появятся на пульте, в деталях и справочнике. Порядок загрузки меняется перетаскиванием.</p>
         <div class="gate-meta" id="gateMeta"></div>
       </div>
       <button class="gate-x" id="gateClose" data-act="gate-close" aria-label="Закрыть конфигурацию" hidden>✕</button>
     </div>
-
     <div class="gate-prefs">
       <div class="gp-card">
         <div class="gp-head"><b>Интерфейс</b><small>переключается в шапке в любой момент</small></div>
         <div class="seg seg-2 tall" id="gateUiSeg" role="group" aria-label="Режим интерфейса">
-          <button type="button" data-act="ui-mode" data-value="simple">ПРОСТОЙ<small>пять параметров и результат</small></button>
+          <button type="button" data-act="ui-mode" data-value="simple">ПРОСТОЙ<small>шесть параметров и результат</small></button>
           <button type="button" data-act="ui-mode" data-value="full">ПОЛНЫЙ<small>пулы, дистанции, режимы, правила</small></button>
         </div>
       </div>
@@ -455,7 +459,6 @@
         </div>
       </div>
     </div>
-
     <div class="gate-body">
       <div class="gate-list" id="gateList"></div>
       <aside class="gate-side">
@@ -489,7 +492,6 @@
         </div>
       </aside>
     </div>
-
     <div class="gate-foot">
       <div class="gf-count" id="gateCount"></div>
       <button class="btn primary xl" id="gateEnter" data-act="gate-enter">Войти в калькулятор</button>
