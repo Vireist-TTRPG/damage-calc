@@ -4,22 +4,20 @@
   "kind": "module",
   "name": "Шаблон модуля (пример)",
   "namespace": "demo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Irreality",
   "example": true,
-  "description": "Не канон. Демонстрация формата: своя пластина с округлением вверх, патрон с фиксированным уроном, ствол в базе оружия и настраиваемое правило износа. Копируйте файл как заготовку для своего сеттинга.",
+  "description": "Не канон. Демонстрация формата: своя пластина с округлением вверх, патрон с фиксированным уроном, ствол в базе оружия, собственный навык для конструктора пула и настраиваемое правило износа.",
   "requires": ["irreality-core"],
-  "rules": [
-    { "id": "extraWear", "label": "Доп. износ за обстрел (пример)", "hint": "Демонстрация ссылки эффекта на значение правила модуля.", "type": "number", "default": 0, "min": 0, "max": 5 }
-  ],
+  "attributes": ["Резонанс"],
+  "skills": ["Пси-фокус"],
+  "rules": [{ "id": "extraWear", "label": "Доп. износ за обстрел (пример)", "hint": "Демонстрация ссылки эффекта на значение правила модуля.", "type": "number", "default": 0, "min": 0, "max": 5 }],
+  "carrierExtensions": [{ "target": "core:light", "addPlates": ["polymer"] }],
   "plates": [
-    { "id": "polymer", "code": "ПМ", "name": "Полимерная плита (пример)", "defense": 3, "integrity": 14, "rounding": "ceil", "breakPenalty": 2, "effects": [ { "type": "extraWear", "amount": 0, "rule": "demo:extraWear", "when": {}, "label": "Доп. износ (правило модуля)" } ], "notes": "Округление вверх — демонстрация альтернативы ядру." }
-  ],
-  "carrierExtensions": [
-    { "target": "core:light", "addPlates": ["polymer"] }
+    { "id": "polymer", "code": "ПМ", "name": "Полимерная плита (пример)", "defense": 3, "integrity": 14, "rounding": "ceil", "breakPenalty": 2, "effects": [{ "type": "extraWear", "amount": 0, "rule": "demo:extraWear", "when": {}, "label": "Доп. износ (правило модуля)" }], "notes": "Округление вверх — демонстрация альтернативы ядру." }
   ],
   "ammo": [
-    { "id": "flechette", "code": "ФЛЕШЕТ", "name": "Игловой разряд (пример)", "damageType": "surface", "fixedDamage": { "surface": 2 }, "armorPierce": 1, "tags": ["demo"], "description": "Фиксированные 2 Поверхностных, игнорирует 1 пункт Защиты. Показывает, что модуль может вводить любой тип урона." }
+    { "id": "flechette", "code": "ФЛ", "name": "Игловой разряд (пример)", "damageType": "surface", "fixedDamage": { "surface": 2 }, "armorPierce": 1, "tags": ["demo"], "description": "Фиксированные 2 Поверхностных, игнорирует 1 пункт Защиты. Показывает, что модуль может вводить любой тип урона." }
   ],
   "weapons": [
     { "id": "needler", "name": "Игольчатый карабин (пример)", "rating": 3, "weaponClass": "core:assault", "description": "Демонстрация базы стволов: Рейтинг +3, класс штурмовой винтовки." }

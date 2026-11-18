@@ -6,25 +6,21 @@
     const num = v => (Number.isFinite(+v) ? +v : 0);
     const ref = (r, ns) => (String(r).indexOf(':') >= 0 ? String(r) : ns + ':' + r);
     const sign = v => (num(v) >= 0 ? '+ ' + num(v) : '− ' + Math.abs(num(v)));
+    const typeShort = (ctx, id) => { const t = ctx.types.find(x => x.id === id); return t ? t.short : String(id).toUpperCase(); };
+    const typeLabel = (ctx, id) => { const t = ctx.types.find(x => x.id === id); return t ? t.label : id; };
+    const pushUnique = (arr, v) => { const s = String(v || '').trim(); if (s && arr.indexOf(s) < 0) arr.push(s); };
 
-    function typeShort(ctx, id) {
-        const t = ctx.types.find(x => x.id === id);
-        return t ? t.short : String(id).toUpperCase();
-    }
-    function typeLabel(ctx, id) {
-        const t = ctx.types.find(x => x.id === id);
-        return t ? t.label : id;
-    }
-
-    /* ---------- сборка контекста из активных модулей ---------- */
+    /* ---------- контекст из активных модулей ---------- */
     function buildContext(bundle, enabled, order, ruleValues) {
         const list = order.filter(id => enabled.indexOf(id) >= 0 && bundle.manifests[id]).map(id => bundle.manifests[id]);
         const ctx = {
             modules: list, plates: {}, ammo: {}, carriers: {}, modes: {}, classes: {}, covers: {}, weapons: {},
-            types: [], rules: {}, ruleDefs: [], sources: bundle.sources || {}
+            types: [], rules: {}, ruleDefs: [], attributes: [], skills: [], sources: bundle.sources || {}
         };
         list.forEach(m => {
             const ns = m.namespace;
+            (m.attributes || []).forEach(a => pushUnique(ctx.attributes, typeof a === 'string' ? a : a.name));
+            (m.skills || []).forEach(a => pushUnique(ctx.skills, typeof a === 'string' ? a : a.name));
             (m.damageTypes || []).forEach(t => { if (!ctx.types.some(x => x.id === t.id)) ctx.types.push(Object.assign({}, t, { ns, module: m })); });
             (m.plates || []).forEach(p => { const uid = ns + ':' + p.id; ctx.plates[uid] = Object.assign({}, p, { uid, ns, module: m }); });
             (m.ammo || []).forEach(a => { const uid = ns + ':' + a.id; ctx.ammo[uid] = Object.assign({}, a, { uid, ns, module: m }); });
@@ -63,10 +59,12 @@
                 { id: 'surface', label: 'Поверхностный', short: 'ПОВ', tone: 'surf' }
             ];
         }
+        if (!ctx.attributes.length) ctx.attributes = ['Сила', 'Ловкость', 'Выносливость', 'Интеллект', 'Смекалка', 'Решимость'];
+        if (!ctx.skills.length) ctx.skills = ['Атлетика', 'Меткость', 'Внимательность', 'Драка', 'Скрытность'];
         return ctx;
     }
 
-    /* ---------- пул кубиков ---------- */
+    /* ---------- пул: любые атрибуты, навыки, модификаторы ---------- */
     function computePool(inp, ctx) {
         const cls = ctx.classes[inp.weaponClassId] || null;
         const band = cls && cls.bands ? cls.bands[inp.distanceBand] : null;
@@ -76,8 +74,9 @@
         const plate = inp.plateId ? ctx.plates[inp.plateId] : null;
         const carrier = ctx.carriers[inp.carrierId] || null;
         const armored = !!(plate && carrier && (carrier.plates || []).indexOf(plate.uid) >= 0);
+        const manual = rows => (rows || []).map(c => ({ label: (c.name || 'Компонент').trim() || 'Компонент', value: num(c.value), manual: true }));
 
-        const a = [{ label: 'Меткость', value: num(inp.marksmanship) }, { label: 'Ловкость', value: num(inp.agility) }];
+        const a = manual(inp.poolAttack);
         if (band && num(band.dice)) a.push({ label: 'Дистанция · ' + band.label, value: num(band.dice) });
         if (mode) {
             let mod = num(mode.poolMod);
@@ -86,14 +85,12 @@
                 mod = by[cls.category] !== undefined ? num(by[cls.category]) : num(by.default || 0);
             }
             if (mod) a.push({ label: 'Режим · ' + mode.name, value: mod });
-            if (mode.aim && num(inp.aimTurns) > 0) {
-                a.push({ label: 'Прицеливание · ' + Math.min(num(inp.aimTurns), mode.aim.max) + ' ход(а)', value: Math.min(num(inp.aimTurns), mode.aim.max) * num(mode.aim.perTurn) });
-            }
+            if (mode.aim && num(inp.aimTurns) > 0) a.push({ label: 'Прицеливание · ' + Math.min(num(inp.aimTurns), mode.aim.max) + ' ход(а)', value: Math.min(num(inp.aimTurns), mode.aim.max) * num(mode.aim.perTurn) });
             if (mode.headshot && inp.headshot) a.push({ label: 'Прицел в голову', value: num(mode.headshot.dice) });
         }
         if (ammo && num(ammo.attackDice) && armored) a.push({ label: 'Патрон ' + ammo.code + ' против брони', value: num(ammo.attackDice) });
 
-        const d = [{ label: 'Ловкость цели', value: num(inp.defAgility) }, { label: 'Атлетика', value: num(inp.athletics) }];
+        const d = manual(inp.poolDefense);
         if (cover && num(cover.dice)) d.push({ label: 'Укрытие · ' + cover.name, value: num(cover.dice) });
         let defSuccessMod = 0;
         if (armored && plate.passive && plate.passive.mods && num(plate.passive.mods.agilityDice)) d.push({ label: 'Пластина ' + plate.code, value: num(plate.passive.mods.agilityDice) });
@@ -119,7 +116,6 @@
     const diceSuccesses = arr => (arr || []).reduce((s, d) => s + d.s, 0);
     const diceOnes = arr => (arr || []).filter(d => d.one).length;
 
-    /* ---------- условия эффектов ---------- */
     function cond(when, env) {
         if (!when) return true;
         if (when.ammoTag && (!env.ammo || (env.ammo.tags || []).indexOf(when.ammoTag) < 0)) return false;
@@ -134,7 +130,7 @@
         return num(eff[field] !== undefined ? eff[field] : dflt);
     };
 
-    /* ---------- расчёт одного обстрела ---------- */
+    /* ---------- один обстрел ---------- */
     function computeAttack(inp, ctx) {
         const rules = ctx.rules;
         const steps = [], flags = [], warnings = [];
@@ -175,7 +171,6 @@
         }
         res.hit = true;
 
-        /* Рейтинг */
         let rating = num(inp.rating);
         if (rules.autoShotRating && band && band.rating !== undefined && band.rating !== null) {
             rating = num(band.rating);
@@ -185,7 +180,6 @@
         }
         res.rating = rating;
 
-        /* Урон */
         const dtype = (ammo && ammo.damageType) || 'aggravated';
         const dmg = {};
         if (ammo && ammo.fixedDamage) {
@@ -209,13 +203,8 @@
         }
         res.damage = dmg;
         res.damageTotal = Object.keys(dmg).reduce((s, k) => s + num(dmg[k]), 0);
-        steps.push({
-            label: 'Итоговый урон',
-            expr: Object.keys(dmg).filter(k => dmg[k]).map(k => dmg[k] + ' ' + typeShort(ctx, k)).join(' + ') || '0',
-            tone: 'agg'
-        });
+        steps.push({ label: 'Итоговый урон', expr: Object.keys(dmg).filter(k => dmg[k]).map(k => dmg[k] + ' ' + typeShort(ctx, k)).join(' + ') || '0', tone: 'agg' });
 
-        /* Шоковая волна */
         const bypass = {};
         if (ammo && ammo.surfaceBypass && num(dmg.surface) > 0) {
             bypass.surface = num(dmg.surface);
@@ -224,7 +213,6 @@
         }
         res.bypass = bypass;
 
-        /* Защита */
         let A = 0;
         if (armored) {
             A = num(plate.defense);
@@ -272,7 +260,6 @@
         }
         res.armor.total = A;
 
-        /* Поглощение */
         const order = ctx.types.map(t => t.id);
         Object.keys(dmg).forEach(k => { if (order.indexOf(k) < 0) order.push(k); });
         const soakable = {};
@@ -300,12 +287,12 @@
             }
         });
 
-        /* Эффекты пластины по урону */
         const env = { ammo, armored, broken: wasBroken };
         if (armored && plate.effects) {
             plate.effects.forEach(eff => {
-                if (eff.type !== 'reduceDamage' || !cond(eff.when, env)) return;
-                if (eff.when && eff.when.ammoTag && rules[eff.nsRule || 'iso:nuclearOnly'] === false) { /* правило «только ядерные» выключено — условие снимается */ }
+                if (eff.type !== 'reduceDamage') return;
+                const nuclearGate = eff.when && eff.when.ammoTag === 'nuclear' && rules['iso:nuclearOnly'] === false;
+                if (!nuclearGate && !cond(eff.when, env)) return;
                 const t = eff.damageType || 'aggravated';
                 const b = num(hp[t]);
                 if (b <= 0) return;
@@ -319,18 +306,14 @@
             });
         }
 
-        /* Керамика: игнорирование избытка */
         if (res.firstApplied === 'ignoreExcess') {
             let ignored = 0;
             order.forEach(k => { const extra = num(hp[k]) - num(bypass[k]); if (extra > 0) { ignored += extra; hp[k] = num(bypass[k]); } });
-            if (ignored > 0) {
-                steps.push({ label: 'Первая пуля (' + plate.code + '): избыток проигнорирован', expr: ignored + ' → 0 в Здоровье', tone: 'ok' });
-            }
+            if (ignored > 0) steps.push({ label: 'Первая пуля (' + plate.code + '): избыток проигнорирован', expr: ignored + ' → 0 в Здоровье', tone: 'ok' });
         }
         res.hp = hp;
         res.hpTotal = Object.keys(hp).reduce((s, k) => s + num(hp[k]), 0);
 
-        /* Износ — один раз за обстрел */
         let wearBase = 0;
         if (armored && absorbed > 0) {
             const div = Math.max(1, num(rules.wearDivider));
@@ -340,8 +323,7 @@
             } else {
                 const raw = absorbed / div;
                 const rnd = plate.rounding || rules.defaultRounding || 'floor';
-                const fn = ROUND[rnd] || Math.floor;
-                wearBase = fn(raw);
+                wearBase = (ROUND[rnd] || Math.floor)(raw);
                 res.wear.divided = true; res.wear.raw = raw; res.wear.rounding = rnd;
                 const rname = rnd === 'round' ? 'мат. округление' : rnd === 'ceil' ? 'вверх' : 'вниз';
                 steps.push({ label: 'Поглощённое → Поверхностный износ', expr: absorbed + ' ÷ ' + div + ' = ' + raw + ' → ' + wearBase + ' (' + rname + ')', tone: 'steel' });
@@ -352,7 +334,9 @@
         let wearExtra = 0;
         if (armored && plate.effects) {
             plate.effects.forEach(eff => {
-                if (eff.type !== 'extraWear' || !cond(eff.when, env)) return;
+                if (eff.type !== 'extraWear') return;
+                const nuclearGate = eff.when && eff.when.ammoTag === 'nuclear' && rules['iso:nuclearOnly'] === false;
+                if (!nuclearGate && !cond(eff.when, env)) return;
                 const v = effVal(rules, eff, 'amount', 'rule', 0);
                 if (!v) return;
                 wearExtra += v;
@@ -374,7 +358,6 @@
             }
         }
 
-        /* Эффекты патрона */
         if (ammo && ammo.effects) {
             ammo.effects.forEach(eff => {
                 if (!cond(eff.when, env)) return;
@@ -383,11 +366,8 @@
                 else warnings.push('Неизвестный тип эффекта патрона: ' + eff.type);
             });
         }
-        if (armored && plate.effects) {
-            plate.effects.forEach(eff => { if (eff.type === 'note' && cond(eff.when, env)) flags.push({ tone: 'info', text: plate.code + ': ' + eff.text }); });
-        }
+        if (armored && plate.effects) plate.effects.forEach(eff => { if (eff.type === 'note' && cond(eff.when, env)) flags.push({ tone: 'info', text: plate.code + ': ' + eff.text }); });
 
-        /* Режимы: побочные эффекты */
         if (mode) {
             if (mode.overpenetration && margin >= num(mode.overpenetration.margin)) {
                 res.overpen = { damage: num(mode.overpenetration.damage), type: mode.overpenetration.damageType };
@@ -397,8 +377,7 @@
             if (mode.shooterCover) flags.push({ tone: 'steel', text: 'Стрельба вслепую: ' + mode.shooterCover + '.' });
             if (mode.ricochet && mode.ricochet.halfRating) {
                 const ones = num(inp.diceOnes);
-                const fn = ROUND[rules.ricochetRounding] || Math.floor;
-                const dmgR = fn(rating / 2);
+                const dmgR = (ROUND[rules.ricochetRounding] || Math.floor)(rating / 2);
                 res.ricochet = { ones, damage: dmgR };
                 if (ones > 0) flags.push({ tone: 'surf', text: 'Рикошет: ' + ones + ' ' + (ones === 1 ? 'цель' : 'цели') + ' в 10 м получают по ' + dmgR + ' урона (половина Рейтинга).' });
                 else warnings.push('Стрельба вслепую: число рикошетов считается по выпавшим «1» — бросьте пул атаки.');
@@ -413,7 +392,7 @@
         return res;
     }
 
-    /* ---------- серия обстрелов ---------- */
+    /* ---------- серия ---------- */
     function computeSeries(state, ctx, inputOf) {
         let integ = num(state.integrityStart);
         const entries = state.log.map((e, i) => {

@@ -10,7 +10,7 @@
         if (!m.name) errors.push('Отсутствует поле name.');
         if (!m.namespace || !NS_RE.test(m.namespace)) errors.push('namespace должен быть строчным латинским идентификатором (a-z, 0-9, дефис).');
         if (m.kind && ['core', 'module'].indexOf(m.kind) < 0) errors.push('kind должен быть core или module.');
-        ['plates', 'ammo', 'carriers', 'fireModes', 'weaponClasses', 'covers', 'rules', 'weapons', 'damageTypes'].forEach(k => {
+        ['plates', 'ammo', 'carriers', 'fireModes', 'weaponClasses', 'covers', 'rules', 'weapons', 'damageTypes', 'attributes', 'skills'].forEach(k => {
             if (m[k] !== undefined && !Array.isArray(m[k])) errors.push('Поле ' + k + ' должно быть массивом.');
         });
         (m.plates || []).forEach(p => {
@@ -46,6 +46,7 @@
         });
         out.mode = 'embedded';
         if (reason) out.errors.unshift({ id: 'загрузка', message: reason });
+        loadLocal().forEach(m => add(out, m, 'local'));
         return out;
     }
 
@@ -67,28 +68,22 @@
             try {
                 const r = await fetch('modules/' + file, { cache: 'no-cache' });
                 if (!r.ok) throw new Error('HTTP ' + r.status);
-                const man = await r.json();
-                add(out, man, 'file');
+                add(out, await r.json(), 'file');
             } catch (e) {
                 const emb = window.IR_EMBEDDED.manifests[id];
                 if (emb) {
                     add(out, JSON.parse(JSON.stringify(emb)), 'embedded');
                     out.errors.push({ id, message: 'Файл недоступен (' + e.message + ') — взята встроенная копия.' });
-                } else {
-                    out.errors.push({ id, message: 'Не загружен: ' + e.message });
-                }
+                } else out.errors.push({ id, message: 'Не загружен: ' + e.message });
             }
         }
         if (!out.order.length) return useEmbedded(out, 'Ни один модуль не загружен — использованы встроенные копии.');
-        const locals = loadLocal();
-        locals.forEach(m => add(out, m, 'local'));
+        loadLocal().forEach(m => add(out, m, 'local'));
         return out;
     }
 
-    const LK = 'irreality.localmodules.v1';
-    function loadLocal() {
-        try { const a = JSON.parse(localStorage.getItem(LK)); return Array.isArray(a) ? a : []; } catch (e) { return []; }
-    }
+    const LK = 'irreality.localmodules.v2';
+    function loadLocal() { try { const a = JSON.parse(localStorage.getItem(LK)); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
     function saveLocal(list) { try { localStorage.setItem(LK, JSON.stringify(list)); } catch (e) {} }
     function addLocal(man) {
         const v = validate(man);
@@ -105,10 +100,11 @@
             id: 'my-setting', kind: 'module', name: 'Мой сеттинг', namespace: 'my',
             version: '1.0.0', author: '', description: 'Опишите, что добавляет модуль.',
             requires: ['irreality-core'],
+            attributes: [], skills: [],
             rules: [{ id: 'extraWear', label: 'Доп. износ за обстрел', hint: 'Пример настраиваемого правила.', type: 'number', default: 0, min: 0, max: 5 }],
             carrierExtensions: [{ target: 'core:heavy', addPlates: ['my-plate'] }],
             plates: [{ id: 'my-plate', code: 'МП', name: 'Моя пластина', defense: 4, integrity: 12, rounding: 'floor', breakPenalty: 2, firstShot: { type: 'defenseBonus', value: 1 }, effects: [{ type: 'extraWear', amount: 0, rule: 'my:extraWear', when: {}, label: 'Доп. износ' }], notes: '' }],
-            ammo: [{ id: 'my-ammo', code: 'МОЙ', name: 'Мой патрон', damageType: 'aggravated', damageBonus: 1, armorPierce: 0, tags: [], description: 'Описание эффекта патрона.' }],
+            ammo: [{ id: 'my-ammo', code: 'МЙ', name: 'Мой патрон', damageType: 'aggravated', damageBonus: 1, armorPierce: 0, tags: [], description: 'Описание эффекта патрона.' }],
             weapons: [{ id: 'my-gun', name: 'Мой ствол', rating: 4, weaponClass: 'core:assault', description: '' }]
         };
     }

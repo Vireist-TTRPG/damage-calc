@@ -9,8 +9,10 @@ window.IR_EMBEDDED = {
     manifests: {
         'irreality-core': {
             schema: 'irreality.module/1', id: 'irreality-core', kind: 'core', name: 'Irreality · Ядро', namespace: 'core',
-            version: '1.0.0', author: 'Irreality', required: true, requires: [],
-            description: 'Сеттингонезависимое ядро огнестрела: пул d10, Разница, Рейтинг оружия, поглощение бронёй и износ Целостности один раз за обстрел. Базовые пластины, патроны, носители, дистанции, режимы и укрытия.',
+            version: '2.0.0', author: 'Irreality', required: true, requires: [],
+            description: 'Сеттингонезависимое ядро огнестрела: пул d10 из любых атрибутов и навыков, Разница, Рейтинг оружия, поглощение бронёй и износ Целостности один раз за обстрел. Базовые пластины, патроны, носители, дистанции, режимы и укрытия.',
+            attributes: ['Сила', 'Ловкость', 'Выносливость', 'Харизма', 'Манипулирование', 'Самообладание', 'Интеллект', 'Смекалка', 'Решимость'],
+            skills: ['Атлетика', 'Внимательность', 'Вождение', 'Воровство', 'Драка', 'Меткость', 'Ближний бой', 'Ремесло', 'Этикет', 'Исполнение', 'Запугивание', 'Расследование', 'Медицина', 'Оккультизм', 'Политика', 'Наука', 'Скрытность', 'Выживание', 'Проницательность', 'Уличные порядки', 'Обращение с животными', 'Академические знания', 'Техника', 'Финансы'],
             damageTypes: [
                 { id: 'aggravated', label: 'Усугублённый', short: 'УСУГ', tone: 'agg' },
                 { id: 'surface', label: 'Поверхностный', short: 'ПОВ', tone: 'surf' }
@@ -35,12 +37,12 @@ window.IR_EMBEDDED = {
             ],
             weaponClasses: [
                 { id: 'pistol', name: 'Пистолет', category: 'pistol', bands: { near: { label: '0–15 м', dice: 0 }, mid: { label: '15–30 м', dice: -2 }, far: { label: '30+ м', dice: -4 } }, note: 'На 30 м попасть в стрессе почти нереально без упора.' },
-                { id: 'smg', name: 'ПП', category: 'smg', bands: { near: { label: '0–25 м', dice: 0 }, mid: { label: '25–75 м', dice: -2 }, far: { label: '75+ м', dice: -4 } }, note: 'Тяжёлый затвор и пистолетный патрон: пуля быстро теряет энергию.' },
+                { id: 'smg', name: 'Пистолет-пулемёт', category: 'smg', bands: { near: { label: '0–25 м', dice: 0 }, mid: { label: '25–75 м', dice: -2 }, far: { label: '75+ м', dice: -4 } }, note: 'Тяжёлый затвор и пистолетный патрон: пуля быстро теряет энергию и падает.' },
                 { id: 'shotgun-shot', name: 'Дробовик (дробь)', category: 'shotgun', bands: { near: { label: '0–10 м', dice: 1, rating: 5 }, mid: { label: '10–25 м', dice: 0, rating: 4 }, far: { label: '25+ м', dice: -3, rating: 2 } }, note: 'Дробь рассеивается: дальше 25 м в человека попадает лишь пара дробин.' },
                 { id: 'shotgun-slug', name: 'Дробовик (пуля)', category: 'shotgun', bands: { near: { label: '0–25 м', dice: 0 }, mid: { label: '25–75 м', dice: -1 }, far: { label: '75+ м', dice: -3 } }, note: 'Тяжёлая свинцовая пуля быстро теряет высоту.' },
-                { id: 'assault', name: 'Штурмовая винтовка (5.56)', category: 'auto', bands: { near: { label: '0–50 м', dice: 0 }, mid: { label: '50–200 м', dice: 0 }, far: { label: '200–400 м', dice: -2 } }, note: 'На 50+ м пуля летит стабильно, но в тесных коридорах длинный ствол мешает.' },
-                { id: 'marksman', name: 'Боевая / снайперская (7.62)', category: 'marksman', bands: { near: { label: '0–30 м', dice: -2 }, mid: { label: '30–300 м', dice: 0 }, far: { label: '300–800 м', dice: 0 } }, note: 'В упор длинный ствол и оптика делают оружие неповоротливым.' },
-                { id: 'antimaterial', name: 'Антиматериальная (.50)', category: 'marksman', bands: { near: { label: '0–50 м', dice: -3 }, mid: { label: '50–500 м', dice: 0 }, far: { label: '500–1500 м', dice: 0 } }, note: 'Чудовищная отдача и вес. Стрельба с рук в упор — вывих плеча и промах.' }
+                { id: 'assault', name: 'Штурмовая винтовка', category: 'auto', bands: { near: { label: '0–50 м', dice: 0 }, mid: { label: '50–200 м', dice: 0 }, far: { label: '200–400 м', dice: -2 } }, note: 'Промежуточный патрон. На 50+ м пуля летит стабильно, но в тесных коридорах длинный ствол мешает.' },
+                { id: 'marksman', name: 'Боевая / снайперская', category: 'marksman', bands: { near: { label: '0–30 м', dice: -2 }, mid: { label: '30–300 м', dice: 0 }, far: { label: '300–800 м', dice: 0 } }, note: 'Мощный винтовочный патрон. В упор длинный ствол и оптика делают оружие неповоротливым.' },
+                { id: 'antimaterial', name: 'Антиматериальная', category: 'marksman', bands: { near: { label: '0–50 м', dice: -3 }, mid: { label: '50–500 м', dice: 0 }, far: { label: '500–1500 м', dice: 0 } }, note: 'Чудовищная отдача и вес. Стрельба с рук в упор — вывих плеча и промах. Требует сошек.' }
             ],
             fireModes: [
                 { id: 'burst', code: 'ОЧ', name: 'Очередь', cost: '3–5 патронов', poolMod: 0, damageBonus: 0, summary: 'Базовый режим', note: 'Зацеп соседей: при Разнице ≥ 4 пули прошивают цель — любой в 1–2 м за ней получает 2 Поверхностного урона.', overpenetration: { margin: 4, damage: 2, damageType: 'surface' } },
@@ -68,13 +70,14 @@ window.IR_EMBEDDED = {
                 { id: 'fmj', code: 'FMJ', name: 'Оболочечный', damageType: 'aggravated', tags: ['ballistic'], description: 'Обычный патрон. Без модификаторов.' },
                 { id: 'jhp', code: 'JHP', name: 'Экспансивный', damageType: 'aggravated', damageBonus: 1, attackDice: -1, tags: ['ballistic'], description: '+1 к урону; −1 кубик к попаданию против брони/укрытия. Раскрывается в теле, но вязнет в пластинах.' },
                 { id: 'ap', code: 'AP', name: 'Бронебойный', damageType: 'aggravated', attackDice: 1, tags: ['ballistic'], description: '+1 кубик к попаданию против брони/укрытия.' },
-                { id: 'shot', code: 'ДРОБЬ', name: 'Дробь', damageType: 'aggravated', damageVsArmor: -2, ignoreWearDivision: true, tags: ['ballistic', 'shot'], description: '−2 к урону против брони. Весь поглощённый бронёй урон не режется вдвое — сноп дроби выгрызает пластину целиком.' }
+                { id: 'shot', code: 'ДР', name: 'Дробь', damageType: 'aggravated', damageVsArmor: -2, ignoreWearDivision: true, tags: ['ballistic', 'shot'], description: '−2 к урону против брони. Весь поглощённый бронёй урон не режется вдвое — сноп дроби выгрызает пластину целиком.' }
             ]
         },
         'isotope-tier': {
             schema: 'irreality.module/1', id: 'isotope-tier', kind: 'module', name: 'Изотопный Ярус', namespace: 'iso',
-            version: '1.0.0', author: 'Модуль сеттинга', requires: ['irreality-core'],
+            version: '2.0.0', author: 'Модуль сеттинга', requires: ['irreality-core'],
             description: 'Модуль брони, патронов и оружия: аблятивный композит «Саркофаг» и линейка ядерных боеприпасов — гиперзвуковой вольфрам, термобар, кавитационная игла, ЭМИ-разрядник и разрывная плазма.',
+            skills: ['Ядерная инженерия', 'Радиационная разведка'],
             rules: [
                 { id: 'ablativeReduction', label: '«Саркофаг»: снижение Усугублённого', hint: 'На сколько пунктов композит гасит Усугублённый урон.', type: 'number', default: 2, min: 0, max: 6 },
                 { id: 'ablativeMin', label: '«Саркофаг»: минимум урона', hint: 'Ниже этого значения урон не снижается (если он вообще был).', type: 'number', default: 1, min: 0, max: 3 },
@@ -94,21 +97,22 @@ window.IR_EMBEDDED = {
                     notes: 'Округление не задано в источнике — применяется правило ядра. Чудовищный вес и громоздкость.' }
             ],
             ammo: [
-                { id: 'tungsten', code: 'ВОЛЬФРАМ', name: 'Гиперзвуковой вольфрам', damageType: 'aggravated', armorPierce: 1, tags: ['nuclear'], description: 'Стандарт Яруса. Базовый урон — Усугублённый. Игнорирует 1 пункт Защиты брони, создаёт гигантскую кавитационную полость.' },
-                { id: 'thermo', code: 'ТЕРМОБАР', name: 'Термобарический микрозаряд', damageType: 'aggravated', fixedDamage: { aggravated: 2, surface: 3 }, surfaceBypass: true, tags: ['nuclear'], description: 'Урон: 2 Усугублённых + 3 Поверхностных. Поверхностный идёт и в Целостность брони, и в Здоровье (шоковая волна). При попадании — микровзрыв плазмы.' },
-                { id: 'needle', code: 'ИГЛА', name: 'Кавитационная игла', damageType: 'aggravated', armorPierce: 2, tags: ['nuclear'], description: 'Снайперская. Базовый урон — Усугублённый. Игнорирует 2 пункта Защиты: волна дробит кости внутри тела.' },
+                { id: 'tungsten', code: 'ВФ', name: 'Гиперзвуковой вольфрам', damageType: 'aggravated', armorPierce: 1, tags: ['nuclear'], description: 'Стандарт Яруса. Базовый урон — Усугублённый. Игнорирует 1 пункт Защиты брони, создаёт гигантскую кавитационную полость.' },
+                { id: 'thermo', code: 'ТБ', name: 'Термобарический микрозаряд', damageType: 'aggravated', fixedDamage: { aggravated: 2, surface: 3 }, surfaceBypass: true, tags: ['nuclear'], description: 'Урон: 2 Усугублённых + 3 Поверхностных. Поверхностный идёт и в Целостность брони, и в Здоровье (шоковая волна). При попадании — микровзрыв плазмы.' },
+                { id: 'needle', code: 'КИ', name: 'Кавитационная игла', damageType: 'aggravated', armorPierce: 2, tags: ['nuclear'], description: 'Снайперская. Базовый урон — Усугублённый. Игнорирует 2 пункта Защиты: волна дробит кости внутри тела.' },
                 { id: 'emp', code: 'ЭМИ', name: 'ЭМИ-разрядник', damageType: 'surface', fixedDamage: { surface: 1 }, tags: ['nonlethal'], effects: [{ type: 'zeroIntegrity', target: 'киберимпланты и электронная броня', label: 'ЭМИ-разряд' }, { type: 'note', text: 'Отключает «Око Бога» на 1d3 раунда.', when: {} }], description: 'Нелетальный. Урон: 1 Поверхностный. Мгновенно обнуляет Целостность любого киберимпланта или электронной брони.' },
-                { id: 'plasma', code: 'ПЛАЗМА', name: 'Разрывная плазма', damageType: 'aggravated', fixedDamage: { aggravated: 2 }, ignoreWearDivision: true, tags: ['nuclear', 'shot'], description: 'Ядерная дробь. Урон: 2 Усугублённых на близкой дистанции. Поглощённый урон не делится пополам — мгновенно выжигает защитные пластины.' }
+                { id: 'plasma', code: 'ПЛ', name: 'Разрывная плазма', damageType: 'aggravated', fixedDamage: { aggravated: 2 }, ignoreWearDivision: true, tags: ['nuclear', 'shot'], description: 'Ядерная дробь. Урон: 2 Усугублённых на близкой дистанции. Поглощённый урон не делится пополам — мгновенно выжигает защитные пластины.' }
             ]
         },
         'example-template': {
             schema: 'irreality.module/1', id: 'example-template', kind: 'module', name: 'Шаблон модуля (пример)', namespace: 'demo',
-            version: '0.1.0', author: 'Irreality', example: true, requires: ['irreality-core'],
-            description: 'Не канон. Демонстрация формата: своя пластина с округлением вверх, патрон с фиксированным уроном, ствол в базе оружия и настраиваемое правило износа. Копируйте файл как заготовку для своего сеттинга.',
+            version: '0.2.0', author: 'Irreality', example: true, requires: ['irreality-core'],
+            description: 'Не канон. Демонстрация формата: своя пластина с округлением вверх, патрон с фиксированным уроном, ствол в базе оружия, собственный навык для конструктора пула и настраиваемое правило износа.',
+            attributes: ['Резонанс'], skills: ['Пси-фокус'],
             rules: [{ id: 'extraWear', label: 'Доп. износ за обстрел (пример)', hint: 'Демонстрация ссылки эффекта на значение правила модуля.', type: 'number', default: 0, min: 0, max: 5 }],
             carrierExtensions: [{ target: 'core:light', addPlates: ['polymer'] }],
             plates: [{ id: 'polymer', code: 'ПМ', name: 'Полимерная плита (пример)', defense: 3, integrity: 14, rounding: 'ceil', breakPenalty: 2, effects: [{ type: 'extraWear', amount: 0, rule: 'demo:extraWear', when: {}, label: 'Доп. износ (правило модуля)' }], notes: 'Округление вверх — демонстрация альтернативы ядру.' }],
-            ammo: [{ id: 'flechette', code: 'ФЛЕШЕТ', name: 'Игловой разряд (пример)', damageType: 'surface', fixedDamage: { surface: 2 }, armorPierce: 1, tags: ['demo'], description: 'Фиксированные 2 Поверхностных, игнорирует 1 пункт Защиты. Показывает, что модуль может вводить любой тип урона.' }],
+            ammo: [{ id: 'flechette', code: 'ФЛ', name: 'Игловой разряд (пример)', damageType: 'surface', fixedDamage: { surface: 2 }, armorPierce: 1, tags: ['demo'], description: 'Фиксированные 2 Поверхностных, игнорирует 1 пункт Защиты. Показывает, что модуль может вводить любой тип урона.' }],
             weapons: [{ id: 'needler', name: 'Игольчатый карабин (пример)', rating: 3, weaponClass: 'core:assault', description: 'Демонстрация базы стволов: Рейтинг +3, класс штурмовой винтовки.' }]
         }
     }
