@@ -1,13 +1,13 @@
-/* IRREALITY · состояние, события, оркестрация. */
+/* IRREALITY · состояние, события, оркестрация. Пульт v3. */
 (function () {
     'use strict';
     const E = window.IREngine, M = window.IRModules, R = window.IRRender;
     const $ = R.$;
-    const LS = 'irreality.firecalc.v2';
+    const LS = 'irreality.firecalc.v3';
     const POOL_MIN = -5, POOL_MAX = 12;
 
     const DEFAULTS = {
-        configured: false, uiMode: 'simple', theme: 'dark',
+        configured: false, uiMode: 'simple', theme: 'dark', detailTab: 'ammo',
         enabled: ['irreality-core', 'isotope-tier'], order: [], ruleValues: {},
         attack: 5, defense: 2, rating: 4,
         poolAttack: [{ name: 'Меткость', value: 4, custom: false }, { name: 'Ловкость', value: 3, custom: false }],
@@ -32,13 +32,14 @@
 
     function load() {
         try {
-            const raw = JSON.parse(localStorage.getItem(LS));
+            const raw = JSON.parse(localStorage.getItem(LS)) || JSON.parse(localStorage.getItem('irreality.firecalc.v2'));
             if (!raw || typeof raw !== 'object') { fresh = true; return JSON.parse(JSON.stringify(DEFAULTS)); }
             const s = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), raw);
             s.dice = { attack: [], defense: [] };
             ['log', 'enabled', 'order', 'poolAttack', 'poolDefense'].forEach(k => { if (!Array.isArray(s[k])) s[k] = JSON.parse(JSON.stringify(DEFAULTS[k])); });
             if (['simple', 'full'].indexOf(s.uiMode) < 0) s.uiMode = 'simple';
             if (['dark', 'light'].indexOf(s.theme) < 0) s.theme = 'dark';
+            if (['ammo', 'armor', 'fire', 'rules', 'pool'].indexOf(s.detailTab) < 0) s.detailTab = 'ammo';
             return s;
         } catch (e) { fresh = true; return JSON.parse(JSON.stringify(DEFAULTS)); }
     }
@@ -86,6 +87,7 @@
             if (r.type === 'number') ctx.rules[r.key] = E.clamp(v, r.min != null ? r.min : 0, r.max != null ? r.max : 99);
             if (r.type === 'toggle') ctx.rules[r.key] = !!v;
         });
+        if (state.uiMode === 'simple' && ['fire', 'rules', 'pool'].indexOf(state.detailTab) >= 0) state.detailTab = 'ammo';
     }
 
     function applyTheme() {
@@ -100,14 +102,24 @@
     function applyUiMode() {
         document.body.classList.toggle('ui-simple', state.uiMode === 'simple');
         $('uiSeg').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.value === state.uiMode ? 'true' : 'false'));
+        measureDeck();
+    }
+    function measureDeck() {
+        requestAnimationFrame(() => {
+            const d = $('deck');
+            if (d) document.documentElement.style.setProperty('--deck', d.offsetHeight + 'px');
+        });
     }
 
     function refreshCalc() {
         series = E.computeSeries(state, ctx, inputOf);
         R.syncInputs(state, ctx);
-        R.renderPool(state, E.computePool(inputOf(state), ctx));
+        const inp = inputOf(state);
+        R.renderDetails(state, ctx, inp);
+        R.renderPool(state, E.computePool(inp, ctx));
         R.renderResults(state, series.pending, ctx);
         R.renderLog(state, series, ctx);
+        measureDeck();
         save();
     }
     function refreshAll() {
@@ -196,6 +208,30 @@
         } catch (e) { toast('Скачивание недоступно в этом браузере'); }
     }
 
+    /* ---------- броня ---------- */
+    function setArmor(carrierId, plateId) {
+        const carrier = ctx.carriers[carrierId];
+        if (!carrier) return;
+        let pid = plateId;
+        if (carrier.plates.length && carrier.plates.indexOf(pid) < 0) pid = carrier.plates[0];
+        if (state.carrierId === carrierId && (carrierId === 'core:none' || state.plateId === pid)) { refreshCalc(); return; }
+        const hadLog = state.log.length > 0;
+        const snapCarrier = state.carrierId, snapPlate = state.plateId, snapInteg = state.integrityStart, snapLog = state.log.slice();
+        state.carrierId = carrierId;
+        if (carrier.plates.length) {
+            state.plateId = pid;
+            state.integrityStart = ctx.plates[pid].integrity;
+        }
+        if (hadLog) {
+            state.log = [];
+            refreshCalc();
+            toast('Броня сменилась — серия сброшена', () => {
+                state.carrierId = snapCarrier; state.plateId = snapPlate; state.integrityStart = snapInteg; state.log = snapLog;
+                refreshCalc(); toast('Броня и серия восстановлены');
+            });
+        } else refreshCalc();
+    }
+
     /* ---------- журнал ---------- */
     function logAdd() {
         state.log.push({ id: uid(), at: Date.now(), input: inputOf(state) });
@@ -253,8 +289,13 @@
             }
         }
         refreshCalc();
-        if (!state.dice.attack.length && !state.dice.defense.length) toast('Пул пуст — добавьте компоненты пула');
+        if (!state.dice.attack.length && !state.dice.defense.length) toast('Пул пуст — добавьте компоненты во вкладке «Пул»');
+        else if (state.uiMode === 'full' && state.detailTab !== 'pool') {
+            const a = E.diceSuccesses(state.dice.attack), d = E.diceSuccesses(state.dice.defense);
+            toast('Бросок: атака ' + a + ' · защита ' + d + ' ' + pluralRaw(d));
+        }
     }
+    const pluralRaw = n => { const m = n % 100; if (m >= 11 && m <= 14) return 'успехов'; const k = n % 10; return k === 1 ? 'успех' : k >= 2 && k <= 4 ? 'успеха' : 'успехов'; };
 
     /* ---------- конфигурация ---------- */
     function openGate() {
@@ -304,12 +345,23 @@
                 if (key === 'modeId') { state.aimTurns = 0; state.headshot = false; }
                 refreshCalc(); break;
             case 'toggle': state[key] = !state[key]; refreshCalc(); break;
+            case 'detail-tab':
+                state.detailTab = el.dataset.tab;
+                refreshCalc(); break;
+            case 'deck-pool': {
+                state.detailTab = 'pool';
+                refreshCalc();
+                const panel = $('detailsPanel');
+                panel.classList.remove('flash'); void panel.offsetWidth; panel.classList.add('flash');
+                if (window.innerWidth < 1080) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                break;
+            }
             case 'ui-mode':
                 if (state.uiMode === el.dataset.value) break;
                 state.uiMode = el.dataset.value;
-                applyUiMode(); refreshCalc();
+                ensure(); applyUiMode(); refreshCalc();
                 if (!$('gate').hidden) R.renderGate(bundle, state);
-                else toast(state.uiMode === 'simple' ? 'Простой интерфейс: только главное' : 'Полный интерфейс: все инструменты');
+                else toast(state.uiMode === 'simple' ? 'Простой интерфейс: шесть параметров на пульте' : 'Полный интерфейс: все инструменты');
                 break;
             case 'theme':
                 state.theme = state.theme === 'light' ? 'dark' : 'light';
@@ -346,30 +398,8 @@
                 });
                 refreshCalc(); toast('Пул собран: ' + preset.map(p => p[0]).join(' + ')); break;
             }
-            case 'carrier': {
-                const v = el.dataset.value;
-                if (state.carrierId === v) break;
-                const hadLog = state.log.length > 0;
-                state.carrierId = v;
-                const c = ctx.carriers[v];
-                if (c && c.plates.length) {
-                    if (c.plates.indexOf(state.plateId) < 0) state.plateId = c.plates[0];
-                    state.integrityStart = ctx.plates[state.plateId].integrity;
-                }
-                if (hadLog) { const snap = state.log.slice(); state.log = []; refreshCalc(); toast('Сменился носитель брони — серия сброшена', () => { state.log = snap; refreshCalc(); }); }
-                else refreshCalc();
-                break;
-            }
-            case 'plate': {
-                const v = el.dataset.value;
-                if (state.plateId === v) break;
-                const hadLog = state.log.length > 0;
-                state.plateId = v;
-                state.integrityStart = ctx.plates[v].integrity;
-                if (hadLog) { const snap = state.log.slice(); state.log = []; refreshCalc(); toast('Сменилась пластина — серия сброшена', () => { state.log = snap; refreshCalc(); }); }
-                else refreshCalc();
-                break;
-            }
+            case 'carrier': setArmor(el.dataset.value, state.plateId); break;
+            case 'plate': setArmor(state.carrierId, el.dataset.value); break;
             case 'roll': roll(el.dataset.pool); break;
             case 'rule-toggle':
                 state.ruleValues[el.dataset.rule] = !ctx.rules[el.dataset.rule];
@@ -445,7 +475,9 @@
                 if (!Number.isFinite(v)) return;
                 if (k === 'integrityStart') {
                     const p = ctx.plates[state.plateId];
-                    state.integrityStart = E.clamp(v, 0, p ? p.integrity : 0);
+                    const carrier = ctx.carriers[state.carrierId];
+                    const armored = !!(carrier && carrier.plates.length && p);
+                    state.integrityStart = E.clamp(v, 0, armored ? p.integrity : 0);
                 } else state[k] = E.clamp(v, LIM[k] ? LIM[k][0] : 0, LIM[k] ? LIM[k][1] : 99);
                 if (t.type === 'range') R.paintRange(t);
                 refreshCalc();
@@ -474,9 +506,19 @@
         }
         if (d.key) {
             const k = d.key;
+            if (k === 'armorCombo') {
+                if (t.value === '__none') setArmor('core:none', state.plateId);
+                else {
+                    const opt = t.selectedOptions[0];
+                    const carrierId = (opt && opt.dataset.carrier) || state.carrierId;
+                    setArmor(carrierId, t.value);
+                }
+                return;
+            }
             if (t.type === 'checkbox') { state[k] = t.checked; refreshCalc(); return; }
             if (t.tagName === 'SELECT') {
                 state[k] = t.value;
+                if (k === 'modeId') { state.aimTurns = 0; state.headshot = false; }
                 if (k === 'weaponId' && t.value && ctx.weapons[t.value]) {
                     const w = ctx.weapons[t.value];
                     state.rating = w.rating;
@@ -566,8 +608,10 @@
             es.forEach(e => { if (e.isIntersecting) document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === e.target.id)); });
         }, { rootMargin: '-45% 0px -50% 0px' });
         ['calc', 'log', 'ref', 'format'].forEach(id => { const el = $(id); if (el) nav.observe(el); });
-        const out = new IntersectionObserver(es => { es.forEach(e => $('jumpPill').classList.toggle('away', e.isIntersecting)); }, { threshold: 0.04 });
-        out.observe($('results'));
+        const stuck = new IntersectionObserver(es => {
+            es.forEach(e => $('deck').classList.toggle('stuck', !e.isIntersecting));
+        }, { rootMargin: '-75px 0px 0px 0px', threshold: 0 });
+        stuck.observe($('deckSentinel'));
     }
 
     function bind() {
@@ -580,6 +624,7 @@
         document.addEventListener('drop', onDrop);
         document.addEventListener('dragend', endDrag);
         document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('gate').hidden && state.configured) closeGate(); });
+        window.addEventListener('resize', measureDeck);
         window.addEventListener('beforeunload', save);
     }
 

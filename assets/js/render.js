@@ -1,4 +1,6 @@
-/* IRREALITY · рендер. Чистые функции отображения. */
+/* IRREALITY · рендер. Пульт, детали, результат, журнал, справочник.
+   v3.2: крупные итоги пулов, группы атрибутов/навыков в селектах,
+   журнал — числа в контейнере .li-nums (кнопки не перекрывают значения). */
 (function () {
     'use strict';
     const $ = id => document.getElementById(id);
@@ -7,6 +9,11 @@
     const RM = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const plural = (n, a, b, c) => { const m = n % 100; if (m >= 11 && m <= 14) return c; const k = n % 10; return k === 1 ? a : k >= 2 && k <= 4 ? b : c; };
     const sgn = n => (n > 0 ? '+' + n : String(n));
+    const RV_KEY = 'irreality.refview.v1';
+
+    let refView = 'cards';
+    try { const v = localStorage.getItem(RV_KEY); if (v === 'cards' || v === 'table') refView = v; } catch (e) {}
+    let lastRef = { ctx: null, tab: 'plates', query: '' };
 
     function tween(el, val, prefix) {
         if (!el) return;
@@ -38,17 +45,21 @@
         up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 15 6-6 6 6"/></svg>',
         down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>',
         target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg>',
-        miss: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="m5.5 5.5 13 13"/></svg>'
+        miss: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="m5.5 5.5 13 13"/></svg>',
+        cards: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>',
+        table: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 14.5h18M9 9v11"/></svg>'
     };
 
-    /* Чип патрона/режима: код и полное название — всегда две строки,
-       выбор меняет только подсветку, но не раскладку подписи. */
     const chipLabel = (code, name) => '<b>' + esc(code) + '</b><small>' + esc(name) + '</small>';
 
+    function setOptions(sel, html, value, sig) {
+        if (!sel) return;
+        const focused = document.activeElement === sel;
+        if (sel._sig !== sig && !focused) { sel.innerHTML = html; sel._sig = sig; }
+        if (!focused) sel.value = value;
+    }
+
     function buildStatic(ctx, state) {
-        const cs = $('classSelect');
-        cs.innerHTML = Object.keys(ctx.classes).map(k => '<option value="' + k + '">' + esc(ctx.classes[k].name) + '</option>').join('');
-        cs.value = state.weaponClassId;
         const wKeys = Object.keys(ctx.weapons);
         $('weaponSelectWrap').hidden = wKeys.length === 0;
         if (wKeys.length) {
@@ -62,12 +73,104 @@
         $('ammoCount').textContent = Object.keys(ctx.ammo).length + ' в базе';
     }
 
-    /* ---------- конструктор пула ---------- */
+    /* ---------- пульт ---------- */
+    function syncDeck(state, ctx) {
+        ['attack', 'defense', 'rating'].forEach(k => {
+            const el = $('in-' + k);
+            if (el && document.activeElement !== el) el.value = state[k];
+        });
+
+        const ammoByMod = {};
+        Object.keys(ctx.ammo).forEach(k => { const a = ctx.ammo[k]; (ammoByMod[a.ns] = ammoByMod[a.ns] || { m: a.module, list: [] }).list.push(a); });
+        const ammoHtml = Object.keys(ammoByMod).map(ns => {
+            const g = ammoByMod[ns];
+            return '<optgroup label="' + esc(g.m.name) + '">' + g.list.map(a =>
+                '<option value="' + a.uid + '">' + esc(a.code) + ' · ' + esc(a.name) + '</option>').join('') + '</optgroup>';
+        }).join('');
+        setOptions($('d-ammo'), ammoHtml, state.ammoId, 'ammo:' + Object.keys(ctx.ammo).join(','));
+
+        const carrierKeys = Object.keys(ctx.carriers);
+        let armorHtml = '<option value="__none">Без брони</option>';
+        carrierKeys.forEach(ck => {
+            const c = ctx.carriers[ck];
+            if (!c.plates.length) return;
+            armorHtml += '<optgroup label="' + esc(c.name) + '">' + c.plates.map(pk => {
+                const p = ctx.plates[pk];
+                return p ? '<option value="' + pk + '" data-carrier="' + ck + '">' + esc(p.code) + ' · ' + esc(p.name) + ' — ' + p.defense + '/' + p.integrity + '</option>' : '';
+            }).join('') + '</optgroup>';
+        });
+        const carrier = ctx.carriers[state.carrierId];
+        const armored = !!(carrier && carrier.plates.length && ctx.plates[state.plateId]);
+        setOptions($('d-armor'), armorHtml, armored ? state.plateId : '__none', 'armor:' + carrierKeys.join(',') + ':' + Object.keys(ctx.plates).join(','));
+
+        const p = armored ? ctx.plates[state.plateId] : null;
+        const di = $('d-integrity');
+        di.disabled = !p;
+        if (p) {
+            di.max = p.integrity;
+            if (document.activeElement !== di) di.value = state.integrityStart;
+            paintRange(di);
+            $('d-integVal').textContent = state.integrityStart;
+            $('d-integMax').textContent = p.integrity;
+            const st = state.integrityStart === 0 ? ['bad', 'СЛОМ'] : state.integrityStart === p.integrity ? ['ok', 'ЦЕЛА'] : ['warn', 'ИЗНОС'];
+            $('d-integState').className = 'state-tag ' + st[0];
+            $('d-integState').textContent = st[1];
+            $('d-integState').hidden = false;
+        } else {
+            di.value = 0; di.style.background = 'var(--line)';
+            $('d-integVal').textContent = '—'; $('d-integMax').textContent = '—';
+            $('d-integState').hidden = true;
+        }
+
+        const modeHtml = Object.keys(ctx.modes).map(k => '<option value="' + k + '">' + esc(ctx.modes[k].code) + ' · ' + esc(ctx.modes[k].name) + '</option>').join('');
+        setOptions($('d-mode'), modeHtml, state.modeId, 'mode:' + Object.keys(ctx.modes).join(','));
+        const cls = ctx.classes[state.weaponClassId];
+        const distHtml = [['near', 'Ближняя'], ['mid', 'Средняя'], ['far', 'Дальняя']].map(b => {
+            const band = cls && cls.bands ? cls.bands[b[0]] : null;
+            const d = band ? E.num(band.dice) : 0;
+            return '<option value="' + b[0] + '">' + b[1] + (band ? ' · ' + band.label : '') + (d ? ' (' + sgn(d) + ')' : '') + '</option>';
+        }).join('');
+        setOptions($('d-dist'), distHtml, state.distanceBand, 'dist:' + state.weaponClassId + ':' + Object.keys(ctx.classes).join(','));
+        const classHtml = Object.keys(ctx.classes).map(k => '<option value="' + k + '">' + esc(ctx.classes[k].name) + '</option>').join('');
+        setOptions($('d-class'), classHtml, state.weaponClassId, 'class:' + Object.keys(ctx.classes).join(','));
+        setOptions($('classSelect'), classHtml, state.weaponClassId, 'class:' + Object.keys(ctx.classes).join(','));
+        const coverHtml = Object.keys(ctx.covers).map(k => {
+            const cv = ctx.covers[k];
+            return '<option value="' + k + '">' + esc(cv.name) + (cv.untargetable ? ' · цель недоступна' : cv.dice ? ' · +' + cv.dice + ' куб.' : '') + '</option>';
+        }).join('');
+        setOptions($('d-cover'), coverHtml, state.coverId, 'cover:' + Object.keys(ctx.covers).join(','));
+    }
+
+    /* ---------- детали ---------- */
+    const FULL_TABS = [['ammo', 'ПАТРОН'], ['armor', 'БРОНЯ'], ['fire', 'ОБСТРЕЛ'], ['rules', 'ПРАВИЛА'], ['pool', 'ПУЛ']];
+    function renderDetails(state, ctx, input) {
+        const tabs = state.uiMode === 'simple' ? FULL_TABS.slice(0, 2) : FULL_TABS;
+        const pool = E.computePool(input, ctx);
+        const carrier = ctx.carriers[state.carrierId];
+        const armored = !!(carrier && carrier.plates.length && ctx.plates[state.plateId]);
+        const p = armored ? ctx.plates[state.plateId] : null;
+        const changed = ctx.ruleDefs.filter(r => String(ctx.rules[r.key]) !== String(r.default)).length;
+        const summary = {
+            ammo: (ctx.ammo[state.ammoId] || {}).code || '—',
+            armor: p ? p.code + ' ' + state.integrityStart + '/' + p.integrity : 'без брони',
+            fire: ((ctx.modes[state.modeId] || {}).code || '—') + ' · ' + ({ near: 'ближ', mid: 'сред', far: 'дал' }[state.distanceBand] || '—'),
+            rules: changed ? changed + ' изменено' : ctx.ruleDefs.length + ' правил',
+            pool: pool.attack.total + ' / ' + pool.defense.total + ' куб.'
+        };
+        $('detailTabs').innerHTML = tabs.map(t =>
+            '<button role="tab" data-act="detail-tab" data-tab="' + t[0] + '" aria-selected="' + (state.detailTab === t[0]) + '"><b>' + t[1] + '</b><small>' + esc(summary[t[0]]) + '</small></button>').join('');
+        FULL_TABS.forEach(t => { const pane = $('pane-' + t[0]); if (pane) pane.hidden = state.detailTab !== t[0]; });
+    }
+
+    /* Селект компонента пула: группы «Атрибуты · Физические» и т.д. */
     function poolOptions(ctx, row) {
-        const grp = (label, arr) => arr.length
-            ? '<optgroup label="' + esc(label) + '">' + arr.map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join('') + '</optgroup>'
-            : '';
-        let html = grp('Атрибуты', ctx.attributes) + grp('Навыки', ctx.skills);
+        const opt = n => '<option value="' + esc(n) + '">' + esc(n) + '</option>';
+        const grp = (prefix, groups, flat) => {
+            if (groups && groups.length) return groups.map(g =>
+                '<optgroup label="' + esc(prefix + ' · ' + g.label) + '">' + g.names.map(opt).join('') + '</optgroup>').join('');
+            return flat.length ? '<optgroup label="' + esc(prefix) + '">' + flat.map(opt).join('') + '</optgroup>' : '';
+        };
+        let html = grp('Атрибуты', ctx.attrGroups, ctx.attributes) + grp('Навыки', ctx.skillGroups, ctx.skills);
         const known = ctx.attributes.concat(ctx.skills);
         if (!row.custom && row.name && known.indexOf(row.name) < 0) html += '<optgroup label="Из модуля"><option value="' + esc(row.name) + '">' + esc(row.name) + '</option></optgroup>';
         html += '<optgroup label="Прочее"><option value="__custom">Своё название / модификатор…</option></optgroup>';
@@ -77,10 +180,9 @@
         [['attack', 'poolAttackRows', state.poolAttack], ['defense', 'poolDefenseRows', state.poolDefense]].forEach(([side, elId, rows]) => {
             const box = $(elId);
             if (!box) return;
-            const sig = side + '|' + rows.map(r => (r.custom ? '#' : r.name)).join(',') + '|' + ctx.attributes.length + ':' + ctx.skills.length;
+            const sig = side + '|' + rows.map(r => (r.custom ? '#' : r.name)).join(',') + '|' +
+                ctx.attributes.length + ':' + ctx.skills.length + ':' + (ctx.attrGroups || []).length + ':' + (ctx.skillGroups || []).length;
             if (box._sig !== sig) {
-                const act = document.activeElement;
-                const restore = act && act.dataset && act.dataset.poolName === side ? +act.dataset.idx : -1;
                 box.innerHTML = rows.map((r, i) =>
                     '<div class="prow">' +
                     '<select data-pool-name="' + side + '" data-idx="' + i + '" aria-label="Компонент пула ' + (side === 'attack' ? 'атаки' : 'защиты') + '">' + poolOptions(ctx, r) + '</select>' +
@@ -91,7 +193,6 @@
                     (r.custom ? '<input class="pcustom" data-pool-custom="' + side + '" data-idx="' + i + '" value="' + esc(r.name) + '" placeholder="Название компонента" aria-label="Своё название компонента">' : '') +
                     '</div>').join('');
                 box._sig = sig;
-                if (restore >= 0) { const s = box.querySelector('[data-pool-name="' + side + '"][data-idx="' + restore + '"]'); if (s) s.focus(); }
             }
             rows.forEach((r, i) => {
                 const sel = box.querySelector('[data-pool-name="' + side + '"][data-idx="' + i + '"]');
@@ -105,12 +206,8 @@
     }
 
     function syncInputs(state, ctx) {
-        ['attack', 'defense', 'rating'].forEach(k => {
-            const el = $('in-' + k);
-            if (el && document.activeElement !== el) el.value = state[k];
-        });
+        syncDeck(state, ctx);
         const aa = $('autoApply'); if (aa) aa.checked = !!state.autoApply;
-        const cs = $('classSelect'); if (cs && document.activeElement !== cs) cs.value = state.weaponClassId;
         syncPoolRows(state, ctx);
 
         const c = ctx.classes[state.weaponClassId];
@@ -132,8 +229,7 @@
 
         $('modeChips').innerHTML = Object.keys(ctx.modes).map(k => {
             const m = ctx.modes[k], on = state.modeId === k;
-            return '<button type="button" class="mchip' + (on ? ' on' : '') + '" data-act="set" data-key="modeId" data-value="' + k + '" aria-pressed="' + on + '">' +
-                chipLabel(m.code, m.name) + '</button>';
+            return '<button type="button" class="mchip' + (on ? ' on' : '') + '" data-act="set" data-key="modeId" data-value="' + k + '" aria-pressed="' + on + '">' + chipLabel(m.code, m.name) + '</button>';
         }).join('');
         const mode = ctx.modes[state.modeId];
         $('aimWrap').hidden = !(mode && mode.aim);
@@ -153,20 +249,13 @@
             return '<div class="ammo-group"><div class="ag-head' + (g.m.kind === 'core' ? '' : ' iso') + '"><i></i>' + esc(g.m.name.toUpperCase()) + '<span>' + g.list.length + '</span></div><div class="ammo-chips">' +
                 g.list.map(a => {
                     const on = state.ammoId === a.uid;
-                    return '<button type="button" class="achip' + (g.m.kind === 'core' ? '' : ' iso') + (on ? ' on' : '') + '" data-act="set" data-key="ammoId" data-value="' + a.uid + '" aria-pressed="' + on + '">' +
-                        chipLabel(a.code, a.name) + '</button>';
+                    return '<button type="button" class="achip' + (g.m.kind === 'core' ? '' : ' iso') + (on ? ' on' : '') + '" data-act="set" data-key="ammoId" data-value="' + a.uid + '" aria-pressed="' + on + '">' + chipLabel(a.code, a.name) + '</button>';
                 }).join('') + '</div></div>';
         }).join('');
         const am = ctx.ammo[state.ammoId], ad = $('ammoDesc');
         if (am) {
             ad.className = 'ammo-desc' + (am.module.kind === 'core' ? '' : ' iso');
-            const tags = ['<span class="badge ' + (am.damageType === 'surface' ? 'surf' : 'agg') + '">' + esc(E.typeLabel(ctx, am.damageType || 'aggravated').toUpperCase()) + '</span>'];
-            if (am.fixedDamage) tags.push('<span class="badge dim">ФИКС. УРОН</span>');
-            if (am.armorPierce) tags.push('<span class="badge agg">ПРОБИТИЕ ' + am.armorPierce + '</span>');
-            if (am.attackDice) tags.push('<span class="badge steel">' + sgn(am.attackDice) + ' КУБИК</span>');
-            if (am.ignoreWearDivision) tags.push('<span class="badge surf">БЕЗ ДЕЛЕНИЯ</span>');
-            (am.tags || []).forEach(t => tags.push('<span class="badge iso">' + esc(t.toUpperCase()) + '</span>'));
-            ad.innerHTML = '<b>' + esc(am.name) + ' · ' + esc(am.code) + '.</b> ' + esc(am.description || '') + '<div class="ammo-tags">' + tags.join('') + '</div>';
+            ad.innerHTML = '<b>' + esc(am.name) + ' · ' + esc(am.code) + '.</b> ' + esc(am.description || '') + '<div class="ammo-tags">' + ammoBadges(ctx, am).join('') + '</div>';
         } else ad.innerHTML = '';
 
         $('carrierSeg').innerHTML = Object.keys(ctx.carriers).map(k =>
@@ -230,13 +319,6 @@
                     return '<div class="rule' + (dep ? '' : ' disabled') + '">' + control + '<div class="sw-txt"><b>' + esc(r.label) + '</b><small>' + esc(r.hint || '') + '</small></div></div>';
                 }).join('') + '</div>';
         }).join('');
-
-        const sc = $('simpleCtx');
-        if (sc) {
-            const bl = band ? band.label : '—';
-            sc.innerHTML = 'Скрытые параметры сейчас: <b>' + esc(mode ? mode.name : '—') + '</b> · ' + esc(c ? c.name : '—') +
-                ' · ' + esc(bl) + ' · укрытие: <b>' + esc(ctx.covers[state.coverId] ? ctx.covers[state.coverId].name : '—') + '</b>.';
-        }
     }
 
     function paintRange(r) {
@@ -249,6 +331,10 @@
     function renderPool(state, pool) {
         $('poolAttackTotal').textContent = pool.attack.total;
         $('poolDefenseTotal').textContent = pool.defense.total;
+        const info = $('deckPoolInfo');
+        if (info) info.innerHTML =
+            '<span class="pi-blk a"><small>АТАКА</small><b>' + pool.attack.total + '</b></span>' +
+            '<span class="pi-blk d"><small>ЗАЩИТА</small><b>' + pool.defense.total + '</b></span>';
         const chip = p => '<span class="pm ' + (p.manual ? 'man' : p.value > 0 ? 'pos' : p.value < 0 ? 'neg' : '') + '">' + esc(p.label) + ' ' + sgn(p.value) + '</span>';
         $('poolRead').innerHTML =
             '<div class="pool-pill a' + (pool.attack.total <= 0 ? ' warn' : '') + '"><small>ИТОГО АТАКА</small><b>' + pool.attack.total + '</b><i>' + plural(pool.attack.total, 'кубик', 'кубика', 'кубиков') + '</i></div>' +
@@ -278,9 +364,6 @@
         $('roAgg').parentNode.classList.toggle('zero', agg === 0);
         $('roSurf').parentNode.classList.toggle('zero', surf === 0);
         $('roWear').parentNode.classList.toggle('zero', r.wear.total === 0);
-
-        tween($('mMargin'), r.margin); tween($('mDamage'), r.damageTotal); tween($('mAbsorbed'), r.absorbed);
-        $('mIntegrity').textContent = r.armored ? r.integrityAfter + '/' + r.integrityMax : '—';
 
         const mr = $('marginRead');
         mr.className = 'margin-read' + (r.margin <= 0 ? ' miss' : '');
@@ -321,13 +404,14 @@
         $('flagBox').innerHTML = flags.map(f => '<span class="flag ' + esc(f.tone) + '"><i></i><span>' + esc(f.text) + '</span></span>').join('');
         $('traceBox').innerHTML = traceHTML(r.steps);
         $('traceCount').textContent = r.steps.length + ' ' + plural(r.steps.length, 'шаг', 'шага', 'шагов');
-        $('jumpTxt').textContent = 'УСУГ ' + agg + ' · ПОВ ' + surf + (r.armored ? ' · БРОНЯ −' + r.wear.total : '');
+        $('jumpTxt').textContent = 'УСУГ ' + agg + ' · ПОВ ' + surf + (r.armored ? ' · −' + r.wear.total : '');
+        $('dockAttack').textContent = state.attack;
+        $('dockDefense').textContent = state.defense;
     }
 
     function renderLog(state, series, ctx) {
         const t = series.totals, n = series.entries.length;
-        const armed = series.pending.armored;
-        const p = armed ? ctx.plates[state.plateId] : null;
+        const p = series.pending.armored ? ctx.plates[state.plateId] : null;
         $('logSummary').innerHTML =
             '<div class="ls"><small>ОБСТРЕЛОВ</small><b>' + n + '</b></div>' +
             '<div class="ls ok adv"><small>ПОПАДАНИЙ</small><b>' + t.hits + '</b></div>' +
@@ -364,10 +448,12 @@
                 '<span class="drag-handle" draggable="true" data-drag-log="' + esc(e.id) + '" title="Перетащите, чтобы изменить порядок">' + ICON.grip + '</span>' +
                 '<span class="li-idx">' + (x.index + 1) + '</span>' +
                 '<span class="li-meta">' + badges + '</span>' +
+                '<span class="li-nums">' +
                 '<span class="li-cell agg"><small>УСУГ</small>' + E.num(r.hp.aggravated) + '</span>' +
                 '<span class="li-cell surf"><small>ПОВ</small>' + E.num(r.hp.surface) + '</span>' +
                 '<span class="li-cell steel"><small>ИЗНОС</small>' + (r.wear.total ? '−' + r.wear.total : '0') + '</span>' +
-                '<span class="li-cell hide-m"><small>ОСТАТОК</small>' + (r.armored ? r.integrityAfter + '/' + r.integrityMax : '—') + '</span>' +
+                '<span class="li-cell rem"><small>ОСТАТОК</small>' + (r.armored ? r.integrityAfter + '/' + r.integrityMax : '—') + '</span>' +
+                '</span>' +
                 '<span class="li-acts">' +
                 '<button class="icon-btn adv" data-act="log-up" data-id="' + esc(e.id) + '" title="Выше">' + ICON.up + '</button>' +
                 '<button class="icon-btn adv" data-act="log-down" data-id="' + esc(e.id) + '" title="Ниже">' + ICON.down + '</button>' +
@@ -380,8 +466,59 @@
         if (n > 0 && rows.length === 0) $('logList').innerHTML = '<div class="ref-empty">Под фильтр не попал ни один обстрел.</div>';
     }
 
+    /* ============================================================
+       СПРАВОЧНИК · карточки (кладка) + таблицы
+       ============================================================ */
     const TABS = [['plates', 'ПЛАСТИНЫ'], ['ammo', 'ПАТРОНЫ'], ['carriers', 'НОСИТЕЛИ'], ['dist', 'ДИСТАНЦИИ'], ['modes', 'РЕЖИМЫ'], ['rules', 'ПРАВИЛА'], ['weapons', 'ОРУЖИЕ']];
+    const CARD_TABS = ['plates', 'ammo', 'modes', 'weapons'];
+    const ROUND_LABEL = { floor: 'Вниз', round: 'Математическое', ceil: 'Вверх' };
+
+    const srcBadge = m => '<span class="badge ' + (m.kind === 'core' ? '' : 'iso') + '">' + esc(m.name) + '</span>';
+
+    function ammoBadges(ctx, a) {
+        const tags = ['<span class="badge ' + (a.damageType === 'surface' ? 'surf' : 'agg') + '">' + esc(E.typeLabel(ctx, a.damageType || 'aggravated').toUpperCase()) + '</span>'];
+        if (a.fixedDamage) tags.push('<span class="badge dim">ФИКС: ' + Object.keys(a.fixedDamage).map(k => a.fixedDamage[k] + ' ' + E.typeShort(ctx, k)).join(' + ') + '</span>');
+        if (a.damageBonus) tags.push('<span class="badge agg">' + sgn(a.damageBonus) + ' УРОН</span>');
+        if (a.damageVsArmor) tags.push('<span class="badge surf">' + sgn(a.damageVsArmor) + ' ПРОТИВ БРОНИ</span>');
+        if (a.attackDice) tags.push('<span class="badge steel">' + sgn(a.attackDice) + ' КУБИК</span>');
+        if (a.armorPierce) tags.push('<span class="badge agg">ПРОБИТИЕ ' + a.armorPierce + '</span>');
+        if (a.ignoreWearDivision) tags.push('<span class="badge surf">БЕЗ ДЕЛЕНИЯ</span>');
+        if (a.surfaceBypass) tags.push('<span class="badge surf">ШОКОВАЯ ВОЛНА</span>');
+        (a.tags || []).forEach(t => tags.push('<span class="badge iso">' + esc(t.toUpperCase()) + '</span>'));
+        return tags;
+    }
+    const firstShotText = p => p.firstShot ? (p.firstShot.type === 'defenseBonus' ? '+' + p.firstShot.value + ' к Защите' : 'Игнорирование избыточного урона') : '—';
+    const roundingText = (ctx, p) => p.rounding ? ROUND_LABEL[p.rounding] : 'Ядро: ' + (ROUND_LABEL[ctx.rules.defaultRounding] || 'Вниз');
+    const plateCarriers = (ctx, p) => Object.keys(ctx.carriers).filter(c => ctx.carriers[c].plates.indexOf(p.uid) >= 0).map(c => ctx.carriers[c].name);
+    function plateEffects(ctx, p) {
+        return (p.effects || []).map(e => {
+            if (e.type === 'reduceDamage') return '<b>' + esc(e.label || 'Снижение урона') + '</b>: −' + (e.rule ? ctx.rules[e.rule] : e.amount) + ' ' + E.typeShort(ctx, e.damageType || 'aggravated') + ', минимум ' + (e.minRule ? ctx.rules[e.minRule] : e.min);
+            if (e.type === 'extraWear') return '<b>' + esc(e.label || 'Доп. износ') + '</b>: −' + (e.rule ? ctx.rules[e.rule] : e.amount) + ' Целостности';
+            return '<b>' + esc(e.label || 'Заметка') + '</b>: ' + esc(e.text || '');
+        });
+    }
+    const modePoolText = m => m.aim ? '+' + m.aim.perTurn + ' кубик за ход (макс. +' + m.aim.max + ')'
+        : m.poolModByCategory ? 'автоматы/ПП −1, остальные 0'
+            : m.poolMod ? sgn(m.poolMod) + ' кубик(а)' : 'базовый бросок';
+    const modeDamageText = m => 'Рейтинг + Разница' + (m.damageBonus ? ' + ' + m.damageBonus : '') + (m.headshot ? '; в голову: ' + m.headshot.dice + ' кубика, +' + m.headshot.damage + ' урона' : '');
+    const plateChips = (ctx, c) => c.plates.map(pk => {
+        const p = ctx.plates[pk];
+        return p ? '<span class="pchip"><b>' + esc(p.code) + '</b><i>' + esc(p.name) + '</i></span>' : '<span class="pchip"><b>' + esc(pk) + '</b></span>';
+    }).join('') || '—';
+
+    function viewSwitch(tab) {
+        if (CARD_TABS.indexOf(tab) < 0) return '';
+        return '<div class="ref-view" role="group" aria-label="Вид справочника">' +
+            '<button type="button" data-refview="cards" aria-pressed="' + (refView === 'cards') + '">' + ICON.cards + 'КАРТОЧКИ</button>' +
+            '<button type="button" data-refview="table" aria-pressed="' + (refView === 'table') + '">' + ICON.table + 'ТАБЛИЦА</button>' +
+            '</div>';
+    }
+    const topline = (note, tab) => '<div class="ref-topline"><p class="ref-note">' + note + '</p>' + viewSwitch(tab) + '</div>';
+    const tableWrap = (head, rows, wide) => '<div class="table-wrap"><table class="ref' + (wide ? ' wide' : '') + '"><thead><tr>' +
+        head.map(h => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
+
     function renderReference(ctx, tab, query) {
+        lastRef = { ctx, tab, query };
         const tabs = TABS.filter(t => t[0] !== 'weapons' || Object.keys(ctx.weapons).length);
         $('refTabs').innerHTML = tabs.map(t => {
             const count = t[0] === 'plates' ? Object.keys(ctx.plates).length : t[0] === 'ammo' ? Object.keys(ctx.ammo).length
@@ -389,104 +526,158 @@
                     : t[0] === 'modes' ? Object.keys(ctx.modes).length : t[0] === 'rules' ? ctx.ruleDefs.length : Object.keys(ctx.weapons).length;
             return '<button role="tab" data-act="ref-tab" data-tab="' + t[0] + '" aria-selected="' + (tab === t[0]) + '">' + t[1] + ' · ' + count + '</button>';
         }).join('');
+
         const q = (query || '').trim().toLowerCase();
         const match = (...parts) => !q || parts.join(' ').toLowerCase().indexOf(q) >= 0;
-        const srcBadge = m => '<span class="badge ' + (m.kind === 'core' ? '' : 'iso') + '">' + esc(m.name) + '</span>';
+        const asTable = refView === 'table' && CARD_TABS.indexOf(tab) >= 0;
         let html = '';
 
         if (tab === 'plates') {
-            const items = Object.keys(ctx.plates).map(k => ctx.plates[k]).filter(p => match(p.code, p.name, p.notes));
-            html = '<p class="ref-note">Защита вычитается из итогового урона. Поглощённая часть делится на делитель ядра (округление — по пластине) и вычитается из Целостности один раз за обстрел. При Целостности 0 пластина ломается и теряет часть Защиты, но продолжает поглощать.</p><div class="ref-grid">' +
-                items.map((p, i) => {
-                    const first = p.firstShot ? (p.firstShot.type === 'defenseBonus' ? '+' + p.firstShot.value + ' к Защите' : 'Игнорирование избыточного урона') : '—';
-                    const rnd = p.rounding ? ({ floor: 'Вниз', round: 'Математическое', ceil: 'Вверх' }[p.rounding]) : 'По правилу ядра (' + ({ floor: 'вниз', round: 'математическое', ceil: 'вверх' }[ctx.rules.defaultRounding] || 'вниз') + ')';
-                    const eff = (p.effects || []).map(e => '<b>' + esc(e.label || e.type) + '</b>: ' + esc(e.type === 'reduceDamage' ? '−' + (e.rule ? ctx.rules[e.rule] : e.amount) + ' ' + E.typeShort(ctx, e.damageType || 'aggravated') + ', минимум ' + (e.minRule ? ctx.rules[e.minRule] : e.min) : e.type === 'extraWear' ? '−' + (e.rule ? ctx.rules[e.rule] : e.amount) + ' Целостности' : e.text || '')).join('<br>');
-                    const carriers = Object.keys(ctx.carriers).filter(c => ctx.carriers[c].plates.indexOf(p.uid) >= 0).map(c => ctx.carriers[c].name).join(', ') || '—';
+            const items = Object.keys(ctx.plates).map(k => ctx.plates[k]).filter(p => match(p.code, p.name, p.notes, (p.passive && p.passive.text) || ''));
+            const note = 'Защита вычитается из итогового урона. Поглощённая часть делится на делитель ядра (округление — по пластине) и вычитается из Целостности один раз за обстрел. При Целостности 0 пластина ломается и теряет часть Защиты, но продолжает поглощать.';
+            if (!items.length) html = topline(note, tab) + '<div class="ref-empty">Ничего не найдено.</div>';
+            else if (asTable) {
+                html = topline(note, tab) + tableWrap(
+                    ['Код', 'Пластина', 'Защ / Цел', 'Первая пуля', 'Округление', 'Поломка', 'Особенности', 'Носители', 'Источник'],
+                    items.map(p => {
+                        const feats = plateEffects(ctx, p).concat(p.passive && p.passive.text ? [esc(p.passive.text)] : []).concat(p.notes ? [esc(p.notes)] : []);
+                        return '<tr><td class="code">' + esc(p.code) + '</td><td>' + esc(p.name) + '<small>' + esc(p.uid) + '</small></td>' +
+                            '<td class="num"><span class="sp"><b class="d">' + p.defense + '</b><em>/</em><b class="i">' + p.integrity + '</b></span></td>' +
+                            '<td>' + esc(firstShotText(p)) + '</td><td>' + esc(roundingText(ctx, p)) + '</td>' +
+                            '<td class="num">−' + p.breakPenalty + (p.brokenNote ? '<small>' + esc(p.brokenNote) + '</small>' : '') + '</td>' +
+                            '<td>' + (feats.join('<br>') || '—') + '</td>' +
+                            '<td>' + (plateCarriers(ctx, p).map(esc).join(', ') || '—') + '</td>' +
+                            '<td>' + srcBadge(p.module) + '</td></tr>';
+                    }), true);
+            } else {
+                html = topline(note, tab) + '<div class="ref-grid">' + items.map((p, i) => {
+                    const eff = plateEffects(ctx, p).join('<br>');
                     return '<div class="rcard' + (p.module.kind === 'core' ? '' : ' iso') + '" style="animation-delay:' + (i * 25) + 'ms">' +
                         '<div class="rc-head"><b>' + esc(p.code) + '</b><span>' + esc(p.name) + '</span><span class="rc-stats"><span class="d">ЗАЩ ' + p.defense + '</span><span class="i">ЦЕЛ ' + p.integrity + '</span></span></div>' +
                         '<div class="rc-tags">' + srcBadge(p.module) + '<span class="badge dim">' + esc(p.uid) + '</span></div>' +
-                        '<dl><dt>Первая пуля</dt><dd>' + esc(first) + '</dd><dt>Округление</dt><dd>' + esc(rnd) + '</dd>' +
+                        '<dl><dt>Первая пуля</dt><dd>' + esc(firstShotText(p)) + '</dd><dt>Округление</dt><dd>' + esc(roundingText(ctx, p)) + '</dd>' +
                         '<dt>Поломка</dt><dd><b>−' + p.breakPenalty + ' к Защите</b>' + (p.brokenNote ? ' · ' + esc(p.brokenNote) : '') + '</dd>' +
-                        '<dt>Пассивная</dt><dd>' + esc(p.passive && p.passive.text ? p.passive.text : '—') + '</dd><dt>Носители</dt><dd>' + esc(carriers) + '</dd>' +
+                        '<dt>Пассивная</dt><dd>' + esc(p.passive && p.passive.text ? p.passive.text : '—') + '</dd>' +
+                        '<dt>Носители</dt><dd>' + (plateCarriers(ctx, p).map(esc).join(', ') || '—') + '</dd>' +
                         (eff ? '<dt>Эффекты</dt><dd>' + eff + '</dd>' : '') + (p.notes ? '<dt>Заметки</dt><dd>' + esc(p.notes) + '</dd>' : '') + '</dl></div>';
                 }).join('') + '</div>';
-            if (!items.length) html = '<div class="ref-empty">Ничего не найдено.</div>';
+            }
         }
+
         if (tab === 'ammo') {
             const items = Object.keys(ctx.ammo).map(k => ctx.ammo[k]).filter(a => match(a.code, a.name, a.description, (a.tags || []).join(' ')));
-            html = '<p class="ref-note">Весь огнестрел ядра наносит Усугублённый урон. Поверхностный появляется только по спецправилам патронов и режимов. Модификаторы попадания — это кубики к пулу, а не готовые успехи.</p><div class="ref-grid">' +
-                items.map((a, i) => {
-                    const tags = ['<span class="badge ' + (a.damageType === 'surface' ? 'surf' : 'agg') + '">' + esc(E.typeLabel(ctx, a.damageType || 'aggravated').toUpperCase()) + '</span>'];
-                    if (a.fixedDamage) tags.push('<span class="badge dim">ФИКС: ' + Object.keys(a.fixedDamage).map(k => a.fixedDamage[k] + ' ' + E.typeShort(ctx, k)).join(' + ') + '</span>');
-                    if (a.damageBonus) tags.push('<span class="badge agg">' + sgn(a.damageBonus) + ' УРОН</span>');
-                    if (a.damageVsArmor) tags.push('<span class="badge surf">' + sgn(a.damageVsArmor) + ' ПРОТИВ БРОНИ</span>');
-                    if (a.attackDice) tags.push('<span class="badge steel">' + sgn(a.attackDice) + ' КУБИК</span>');
-                    if (a.armorPierce) tags.push('<span class="badge agg">ПРОБИТИЕ ' + a.armorPierce + '</span>');
-                    if (a.ignoreWearDivision) tags.push('<span class="badge surf">БЕЗ ДЕЛЕНИЯ</span>');
-                    if (a.surfaceBypass) tags.push('<span class="badge surf">ШОКОВАЯ ВОЛНА</span>');
-                    (a.tags || []).forEach(t => tags.push('<span class="badge iso">' + esc(t.toUpperCase()) + '</span>'));
-                    return '<div class="rcard' + (a.module.kind === 'core' ? '' : ' iso') + '" style="animation-delay:' + (i * 25) + 'ms">' +
-                        '<div class="rc-head"><b>' + esc(a.code) + '</b><span>' + esc(a.name) + '</span></div><div class="rc-tags">' + tags.join('') + '</div>' +
-                        '<dl><dt>Эффект</dt><dd>' + esc(a.description || '') + '</dd>' +
-                        (a.effects ? '<dt>Особое</dt><dd>' + a.effects.map(e => esc(e.text || ((e.label || e.type) + (e.target ? ': ' + e.target : '')))).join('<br>') + '</dd>' : '') +
-                        '<dt>Источник</dt><dd>' + srcBadge(a.module) + ' <span class="rc-id">' + esc(a.uid) + '</span></dd></dl></div>';
-                }).join('') + '</div>';
-            if (!items.length) html = '<div class="ref-empty">Ничего не найдено.</div>';
+            const note = 'Весь огнестрел ядра наносит Усугублённый урон. Поверхностный появляется только по спецправилам патронов и режимов. Модификаторы попадания — это кубики к пулу, а не готовые успехи.';
+            if (!items.length) html = topline(note, tab) + '<div class="ref-empty">Ничего не найдено.</div>';
+            else if (asTable) {
+                html = topline(note, tab) + tableWrap(
+                    ['Код', 'Патрон', 'Тип урона', 'Модификаторы', 'Эффект', 'Источник'],
+                    items.map(a => {
+                        const badges = ammoBadges(ctx, a).filter((b, i) => i > 0);
+                        const extra = (a.effects || []).map(e => esc(e.text || ((e.label || e.type) + (e.target ? ': ' + e.target : '')))).join('<br>');
+                        return '<tr><td class="code">' + esc(a.code) + '</td><td>' + esc(a.name) + '<small>' + esc(a.uid) + '</small></td>' +
+                            '<td>' + esc(E.typeLabel(ctx, a.damageType || 'aggravated')) + '</td>' +
+                            '<td><div class="cell-tags">' + (badges.join('') || '<span class="badge dim">БЕЗ МОДИФИКАТОРОВ</span>') + '</div></td>' +
+                            '<td>' + esc(a.description || '') + (extra ? '<small>' + extra + '</small>' : '') + '</td>' +
+                            '<td>' + srcBadge(a.module) + '</td></tr>';
+                    }), true);
+            } else {
+                html = topline(note, tab) + '<div class="ref-grid">' + items.map((a, i) =>
+                    '<div class="rcard' + (a.module.kind === 'core' ? '' : ' iso') + '" style="animation-delay:' + (i * 25) + 'ms">' +
+                    '<div class="rc-head"><b>' + esc(a.code) + '</b><span>' + esc(a.name) + '</span></div>' +
+                    '<div class="rc-tags">' + ammoBadges(ctx, a).join('') + '</div>' +
+                    '<dl><dt>Эффект</dt><dd>' + esc(a.description || '') + '</dd>' +
+                    (a.effects ? '<dt>Особое</dt><dd>' + a.effects.map(e => esc(e.text || ((e.label || e.type) + (e.target ? ': ' + e.target : '')))).join('<br>') + '</dd>' : '') +
+                    '<dt>Источник</dt><dd>' + srcBadge(a.module) + ' <span class="rc-id">' + esc(a.uid) + '</span></dd></dl></div>').join('') + '</div>';
+            }
         }
+
         if (tab === 'carriers') {
             const items = Object.keys(ctx.carriers).map(k => ctx.carriers[k]).filter(c => match(c.name, (c.passive && c.passive.text) || ''));
-            html = '<p class="ref-note">Носитель определяет, какие пластины можно установить. Вместимость из ранних документов не используется. Пассивные штрафы носителя учитываются в пуле защиты.</p>' +
-                '<div class="table-wrap"><table class="ref"><thead><tr><th>Носитель</th><th>Допустимые пластины</th><th>Особенности</th><th>Источник</th></tr></thead><tbody>' +
-                items.map(c => '<tr><td>' + esc(c.name) + '</td><td>' + (c.plates.map(p => ctx.plates[p] ? esc(ctx.plates[p].code) + ' <small>' + esc(ctx.plates[p].name) + '</small>' : esc(p)).join(', ') || '—') + '</td><td>' + esc(c.passive && c.passive.text ? c.passive.text : '—') + '</td><td>' + srcBadge(c.module) + '</td></tr>').join('') +
-                '</tbody></table></div>';
-            if (!items.length) html = '<div class="ref-empty">Ничего не найдено.</div>';
+            const note = 'Носитель определяет, какие пластины можно установить. Вместимость из ранних документов не используется. Пассивные штрафы носителя учитываются в пуле защиты.';
+            html = items.length
+                ? topline(note, tab) + tableWrap(['Носитель', 'Допустимые пластины', 'Особенности', 'Источник'],
+                items.map(c => '<tr><td>' + esc(c.name) + '</td><td><div class="cell-plates">' + plateChips(ctx, c) + '</div></td>' +
+                    '<td>' + esc(c.passive && c.passive.text ? c.passive.text : '—') + '</td><td>' + srcBadge(c.module) + '</td></tr>'), true)
+                : topline(note, tab) + '<div class="ref-empty">Ничего не найдено.</div>';
         }
+
         if (tab === 'dist') {
             const items = Object.keys(ctx.classes).map(k => ctx.classes[k]).filter(c => match(c.name, c.note));
-            html = '<p class="ref-note">Тип оружия задаётся без калибра: калибр и баллистика живут в патроне. Штрафы применяются к пулу до броска. Урон дроби (5 / 4 / 2) подставляется в Рейтинг автоматически.</p>' +
-                '<div class="table-wrap"><table class="ref"><thead><tr><th>Тип оружия</th><th>Ближняя</th><th>Средняя</th><th>Дальняя</th><th>Реальность</th></tr></thead><tbody>' +
+            const note = 'Тип оружия задаётся без калибра: калибр и баллистика живут в патроне. Штрафы применяются к пулу до броска. Урон дроби (5 / 4 / 2) подставляется в Рейтинг автоматически.';
+            html = items.length
+                ? topline(note, tab) + tableWrap(['Тип оружия', 'Ближняя', 'Средняя', 'Дальняя', 'Реальность'],
                 items.map(c => {
-                    const cell = (b, cls) => { const x = c.bands[b]; if (!x) return '<td>—</td>'; const d = E.num(x.dice); return '<td class="' + cls + '">' + esc(x.label) + '<small>' + (d ? sgn(d) + ' кубика' : 'без штрафа') + (x.rating !== undefined ? ' · Рейтинг +' + x.rating : '') + '</small></td>'; };
+                    const cell = (b, cls) => {
+                        const x = c.bands[b];
+                        if (!x) return '<td>—</td>';
+                        const d = E.num(x.dice);
+                        return '<td class="' + cls + '">' + esc(x.label) + '<small>' + (d ? sgn(d) + ' кубика' : 'без штрафа') + (x.rating !== undefined ? ' · Рейтинг +' + x.rating : '') + '</small></td>';
+                    };
                     return '<tr><td>' + esc(c.name) + '</td>' + cell('near', 'near') + cell('mid', 'mid') + cell('far', 'far') + '<td>' + esc(c.note || '') + '</td></tr>';
-                }).join('') + '</tbody></table></div>';
-            if (!items.length) html = '<div class="ref-empty">Ничего не найдено.</div>';
+                }), true)
+                : topline(note, tab) + '<div class="ref-empty">Ничего не найдено.</div>';
         }
+
         if (tab === 'modes') {
             const items = Object.keys(ctx.modes).map(k => ctx.modes[k]).filter(m => match(m.name, m.code, m.note));
-            html = '<p class="ref-note">Режим не умножает урон и износ: один обстрел — один расчёт и одно списание Целостности. Режим влияет на пул, расход патронов и побочные эффекты.</p><div class="ref-grid">' +
-                items.map((m, i) => {
-                    let pool = m.poolMod ? sgn(m.poolMod) + ' кубик(а)' : 'базовый бросок';
-                    if (m.poolModByCategory) pool = 'автоматы/ПП −1, остальные 0';
-                    if (m.aim) pool = '+' + m.aim.perTurn + ' кубик за ход (макс. +' + m.aim.max + ')';
-                    return '<div class="rcard" style="animation-delay:' + (i * 25) + 'ms"><div class="rc-head"><b>' + esc(m.code) + '</b><span>' + esc(m.name) + '</span></div>' +
-                        '<dl><dt>Расход</dt><dd>' + esc(m.cost) + '</dd><dt>Пул</dt><dd><b>' + esc(pool) + '</b></dd>' +
-                        '<dt>Урон</dt><dd>Рейтинг + Разница' + (m.damageBonus ? ' + ' + m.damageBonus : '') + (m.headshot ? '; в голову: ' + m.headshot.dice + ' кубика, +' + m.headshot.damage + ' урона' : '') + '</dd>' +
-                        '<dt>Особое</dt><dd>' + esc(m.note || '') + '</dd></dl></div>';
-                }).join('') + '</div>';
-            if (!items.length) html = '<div class="ref-empty">Ничего не найдено.</div>';
+            const note = 'Режим не умножает урон и износ: один обстрел — один расчёт и одно списание Целостности. Режим влияет на пул, расход патронов и побочные эффекты.';
+            if (!items.length) html = topline(note, tab) + '<div class="ref-empty">Ничего не найдено.</div>';
+            else if (asTable) {
+                html = topline(note, tab) + tableWrap(['Код', 'Режим', 'Расход', 'Пул', 'Урон', 'Особое'],
+                    items.map(m => '<tr><td class="code">' + esc(m.code) + '</td><td>' + esc(m.name) + '</td><td>' + esc(m.cost) + '</td>' +
+                        '<td class="num">' + esc(modePoolText(m)) + '</td><td>' + esc(modeDamageText(m)) + '</td><td>' + esc(m.note || '') + '</td></tr>'), true);
+            } else {
+                html = topline(note, tab) + '<div class="ref-grid">' + items.map((m, i) =>
+                    '<div class="rcard" style="animation-delay:' + (i * 25) + 'ms"><div class="rc-head"><b>' + esc(m.code) + '</b><span>' + esc(m.name) + '</span></div>' +
+                    '<dl><dt>Расход</dt><dd>' + esc(m.cost) + '</dd><dt>Пул</dt><dd><b>' + esc(modePoolText(m)) + '</b></dd>' +
+                    '<dt>Урон</dt><dd>' + esc(modeDamageText(m)) + '</dd><dt>Особое</dt><dd>' + esc(m.note || '') + '</dd></dl></div>').join('') + '</div>';
+            }
         }
+
         if (tab === 'rules') {
             const items = ctx.ruleDefs.filter(r => match(r.label, r.hint, r.key));
-            html = '<p class="ref-note">Текущие значения правил. Изменяются в блоке «Правила» — расчёт обновляется сразу.</p>' +
-                '<div class="table-wrap"><table class="ref"><thead><tr><th>Правило</th><th>Значение</th><th>Описание</th><th>Источник</th></tr></thead><tbody>' +
+            const note = 'Текущие значения правил. Изменяются во вкладке «Правила» — расчёт обновляется сразу.';
+            html = items.length
+                ? topline(note, tab) + tableWrap(['Правило', 'Значение', 'Описание', 'Источник'],
                 items.map(r => {
                     const v = ctx.rules[r.key];
                     const shown = r.type === 'toggle' ? (v ? 'ВКЛ' : 'ВЫКЛ') : r.type === 'select' ? (((r.options || []).find(o => o.value === v) || {}).label || v) : v;
-                    return '<tr><td>' + esc(r.label) + '<small>' + esc(r.key) + '</small></td><td>' + esc(shown) + '</td><td>' + esc(r.hint || '') + '</td><td>' + srcBadge(r.module) + '</td></tr>';
-                }).join('') + '</tbody></table></div>';
-            if (!items.length) html = '<div class="ref-empty">Ничего не найдено.</div>';
+                    return '<tr><td>' + esc(r.label) + '<small>' + esc(r.key) + '</small></td><td class="num">' + esc(shown) + '</td><td>' + esc(r.hint || '') + '</td><td>' + srcBadge(r.module) + '</td></tr>';
+                }), true)
+                : topline(note, tab) + '<div class="ref-empty">Ничего не найдено.</div>';
         }
+
         if (tab === 'weapons') {
             const items = Object.keys(ctx.weapons).map(k => ctx.weapons[k]).filter(w => match(w.name, w.description));
-            html = '<div class="ref-grid">' + items.map((w, i) =>
-                '<div class="rcard iso" style="animation-delay:' + (i * 25) + 'ms"><div class="rc-head"><b>+' + w.rating + '</b><span>' + esc(w.name) + '</span></div>' +
-                '<dl><dt>Класс</dt><dd>' + esc(ctx.classes[w.weaponClass] ? ctx.classes[w.weaponClass].name : '—') + '</dd>' +
-                '<dt>Описание</dt><dd>' + esc(w.description || '—') + '</dd><dt>Источник</dt><dd>' + srcBadge(w.module) + ' <span class="rc-id">' + esc(w.uid) + '</span></dd></dl></div>').join('') + '</div>';
-            if (!items.length) html = '<div class="ref-empty">Ни один активный модуль не задаёт базу стволов.</div>';
+            const note = 'База стволов из подключённых модулей. Рейтинг подставляется в расчёт, класс задаёт таблицу дистанций.';
+            if (!items.length) html = topline(note, tab) + '<div class="ref-empty">Ни один активный модуль не задаёт базу стволов.</div>';
+            else if (asTable) {
+                html = topline(note, tab) + tableWrap(['Рейтинг', 'Ствол', 'Класс', 'Описание', 'Источник'],
+                    items.map(w => '<tr><td class="num">+' + w.rating + '</td><td>' + esc(w.name) + '<small>' + esc(w.uid) + '</small></td>' +
+                        '<td>' + esc(ctx.classes[w.weaponClass] ? ctx.classes[w.weaponClass].name : '—') + '</td>' +
+                        '<td>' + esc(w.description || '—') + '</td><td>' + srcBadge(w.module) + '</td></tr>'));
+            } else {
+                html = topline(note, tab) + '<div class="ref-grid">' + items.map((w, i) =>
+                    '<div class="rcard iso" style="animation-delay:' + (i * 25) + 'ms"><div class="rc-head"><b>+' + w.rating + '</b><span>' + esc(w.name) + '</span></div>' +
+                    '<dl><dt>Класс</dt><dd>' + esc(ctx.classes[w.weaponClass] ? ctx.classes[w.weaponClass].name : '—') + '</dd>' +
+                    '<dt>Описание</dt><dd>' + esc(w.description || '—') + '</dd><dt>Источник</dt><dd>' + srcBadge(w.module) + ' <span class="rc-id">' + esc(w.uid) + '</span></dd></dl></div>').join('') + '</div>';
+            }
         }
-        $('refPane').innerHTML = html;
+
+        const pane = $('refPane');
+        pane.innerHTML = html;
+        pane.querySelectorAll('[data-refview]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const next = btn.dataset.refview;
+                if (next === refView) return;
+                refView = next;
+                try { localStorage.setItem(RV_KEY, refView); } catch (e) {}
+                renderReference(lastRef.ctx, lastRef.tab, lastRef.query);
+            });
+        });
     }
 
+    /* ---------- конфигурация модулей ---------- */
     function renderGate(bundle, state) {
         const srcLabel = { file: 'ФАЙЛ /modules', embedded: 'ВСТРОЕННАЯ КОПИЯ', local: 'ЛОКАЛЬНАЯ ПРОВЕРКА' };
         const counts = m => [['пластин', (m.plates || []).length], ['патронов', (m.ammo || []).length], ['стволов', (m.weapons || []).length], ['правил', (m.rules || []).length], ['навыков', (m.skills || []).length]]
@@ -529,5 +720,5 @@
         $('gateEnter').textContent = state.configured ? 'Применить и закрыть' : 'Войти в калькулятор';
     }
 
-    window.IRRender = { $, esc, ICON, plural, buildStatic, syncInputs, renderPool, renderResults, renderLog, renderReference, renderGate, traceHTML, paintRange, tween };
+    window.IRRender = { $, esc, ICON, plural, buildStatic, syncInputs, renderDetails, renderPool, renderResults, renderLog, renderReference, renderGate, traceHTML, paintRange, tween };
 })();

@@ -1,4 +1,6 @@
-/* IRREALITY · движок расчёта. Чистые функции, без DOM. */
+/* IRREALITY · движок расчёта. Чистые функции, без DOM.
+   v3.2: словари атрибутов/навыков поддерживают группы
+   ({group, names}) и плоские строки — совместимо со старыми модулями. */
 (function () {
     'use strict';
     const ROUND = { floor: Math.floor, round: Math.round, ceil: Math.ceil };
@@ -9,18 +11,33 @@
     const typeShort = (ctx, id) => { const t = ctx.types.find(x => x.id === id); return t ? t.short : String(id).toUpperCase(); };
     const typeLabel = (ctx, id) => { const t = ctx.types.find(x => x.id === id); return t ? t.label : id; };
     const pushUnique = (arr, v) => { const s = String(v || '').trim(); if (s && arr.indexOf(s) < 0) arr.push(s); };
+    const pushGroup = (groups, label, names) => {
+        let g = groups.find(x => x.label === label);
+        if (!g) { g = { label, names: [] }; groups.push(g); }
+        (names || []).forEach(n => pushUnique(g.names, n));
+    };
+    const addDict = (flat, groups, arr, modName) => {
+        (arr || []).forEach(entry => {
+            if (typeof entry === 'string') { pushUnique(flat, entry); pushGroup(groups, modName, [entry]); }
+            else if (entry && Array.isArray(entry.names)) {
+                const label = entry.group || modName;
+                entry.names.forEach(n => pushUnique(flat, n));
+                pushGroup(groups, label, entry.names);
+            } else if (entry && entry.name) { pushUnique(flat, entry.name); pushGroup(groups, entry.group || modName, [entry.name]); }
+        });
+    };
 
     /* ---------- контекст из активных модулей ---------- */
     function buildContext(bundle, enabled, order, ruleValues) {
         const list = order.filter(id => enabled.indexOf(id) >= 0 && bundle.manifests[id]).map(id => bundle.manifests[id]);
         const ctx = {
             modules: list, plates: {}, ammo: {}, carriers: {}, modes: {}, classes: {}, covers: {}, weapons: {},
-            types: [], rules: {}, ruleDefs: [], attributes: [], skills: [], sources: bundle.sources || {}
+            types: [], rules: {}, ruleDefs: [], attributes: [], skills: [], attrGroups: [], skillGroups: [], sources: bundle.sources || {}
         };
         list.forEach(m => {
             const ns = m.namespace;
-            (m.attributes || []).forEach(a => pushUnique(ctx.attributes, typeof a === 'string' ? a : a.name));
-            (m.skills || []).forEach(a => pushUnique(ctx.skills, typeof a === 'string' ? a : a.name));
+            addDict(ctx.attributes, ctx.attrGroups, m.attributes, m.name);
+            addDict(ctx.skills, ctx.skillGroups, m.skills, m.name);
             (m.damageTypes || []).forEach(t => { if (!ctx.types.some(x => x.id === t.id)) ctx.types.push(Object.assign({}, t, { ns, module: m })); });
             (m.plates || []).forEach(p => { const uid = ns + ':' + p.id; ctx.plates[uid] = Object.assign({}, p, { uid, ns, module: m }); });
             (m.ammo || []).forEach(a => { const uid = ns + ':' + a.id; ctx.ammo[uid] = Object.assign({}, a, { uid, ns, module: m }); });
@@ -59,8 +76,14 @@
                 { id: 'surface', label: 'Поверхностный', short: 'ПОВ', tone: 'surf' }
             ];
         }
-        if (!ctx.attributes.length) ctx.attributes = ['Сила', 'Ловкость', 'Выносливость', 'Интеллект', 'Смекалка', 'Решимость'];
-        if (!ctx.skills.length) ctx.skills = ['Атлетика', 'Меткость', 'Внимательность', 'Драка', 'Скрытность'];
+        if (!ctx.attributes.length) {
+            ctx.attributes = ['Сила', 'Ловкость', 'Выносливость', 'Влияние', 'Эмпатия', 'Сила воли', 'Восприятие', 'Смекалка', 'Эрудиция'];
+            pushGroup(ctx.attrGroups, 'Базовые', ctx.attributes);
+        }
+        if (!ctx.skills.length) {
+            ctx.skills = ['Атлетика', 'Реакция', 'Меткость', 'Наблюдательность', 'Скрытность'];
+            pushGroup(ctx.skillGroups, 'Базовые', ctx.skills);
+        }
         return ctx;
     }
 
