@@ -3,13 +3,12 @@
  * и недоступного /modules. ФАЙЛ СГЕНЕРИРОВАН АВТОМАТИЧЕСКИ.
  * Не правьте вручную: источник — modules/*.json.
  * Пересборка: python tools/build_embedded.py
- * Собрано (UTC): 2026-11-18 11:40:27
+ * Собрано (UTC): 2026-11-18 16:42:59
  * ============================================================ */
 window.IR_EMBEDDED = {
   registry: [
     { "id": "irreality-core", "file": "irreality-core.json", "required": true },
-    { "id": "isotope-tier", "file": "isotope-tier.json" },
-    { "id": "example-template", "file": "example-template.json", "example": true }
+    { "id": "isotope-tier", "file": "isotope-tier.json" }
   ],
   manifests: {
     "irreality-core": {
@@ -103,7 +102,7 @@ window.IR_EMBEDDED = {
       "author": "Модуль сеттинга",
       "description": "Модуль брони, патронов и оружия: аблятивный композит «Саркофаг» и линейка ядерных боеприпасов — гиперзвуковой вольфрам, термобар, кавитационная игла, ЭМИ-разрядник и разрывная плазма.",
       "requires": ["irreality-core"],
-      "skills": ["Ядерная инженерия", "Радиационная разведка"],
+      "skills": [],
       "rules": [
         { "id": "ablativeReduction", "label": "«Саркофаг»: снижение Усугублённого", "hint": "На сколько пунктов композит гасит Усугублённый урон.", "type": "number", "default": 2, "min": 0, "max": 6 },
         { "id": "ablativeMin", "label": "«Саркофаг»: минимум урона", "hint": "Ниже этого значения урон не снижается (если он вообще был).", "type": "number", "default": 1, "min": 0, "max": 3 },
@@ -120,33 +119,6 @@ window.IR_EMBEDDED = {
         { "id": "needle", "code": "КИ", "name": "Кавитационная игла", "damageType": "aggravated", "armorPierce": 2, "tags": ["nuclear"], "description": "Снайперская. Базовый урон — Усугублённый. Игнорирует 2 пункта Защиты: волна дробит кости внутри тела." },
         { "id": "emp", "code": "ЭМИ", "name": "ЭМИ-разрядник", "damageType": "surface", "fixedDamage": { "surface": 1 }, "tags": ["nonlethal"], "effects": [{ "type": "zeroIntegrity", "target": "киберимпланты и электронная броня", "label": "ЭМИ-разряд" }, { "type": "note", "text": "Отключает «Око Бога» на 1d3 раунда.", "when": {} }], "description": "Нелетальный. Урон: 1 Поверхностный. Мгновенно обнуляет Целостность любого киберимпланта или электронной брони." },
         { "id": "plasma", "code": "ПЛ", "name": "Разрывная плазма", "damageType": "aggravated", "fixedDamage": { "aggravated": 2 }, "ignoreWearDivision": true, "tags": ["nuclear", "shot"], "description": "Ядерная дробь. Урон: 2 Усугублённых на близкой дистанции. Поглощённый урон не делится пополам — мгновенно выжигает защитные пластины." }
-      ]
-    },
-    "example-template": {
-      "schema": "irreality.module/1",
-      "id": "example-template",
-      "kind": "module",
-      "name": "Шаблон модуля (пример)",
-      "namespace": "demo",
-      "version": "0.2.0",
-      "author": "Irreality",
-      "example": true,
-      "description": "Не канон. Демонстрация формата: своя пластина с округлением вверх, патрон с фиксированным уроном, ствол в базе оружия, собственный навык для конструктора пула и настраиваемое правило износа.",
-      "requires": ["irreality-core"],
-      "attributes": ["Резонанс"],
-      "skills": ["Пси-фокус"],
-      "rules": [
-        { "id": "extraWear", "label": "Доп. износ за обстрел (пример)", "hint": "Демонстрация ссылки эффекта на значение правила модуля.", "type": "number", "default": 0, "min": 0, "max": 5 }
-      ],
-      "carrierExtensions": [{ "target": "core:light", "addPlates": ["polymer"] }],
-      "plates": [
-        { "id": "polymer", "code": "ПМ", "name": "Полимерная плита (пример)", "defense": 3, "integrity": 14, "rounding": "ceil", "breakPenalty": 2, "effects": [{ "type": "extraWear", "amount": 0, "rule": "demo:extraWear", "when": {}, "label": "Доп. износ (правило модуля)" }], "notes": "Округление вверх — демонстрация альтернативы ядру." }
-      ],
-      "ammo": [
-        { "id": "flechette", "code": "ФЛ", "name": "Игловой разряд (пример)", "damageType": "surface", "fixedDamage": { "surface": 2 }, "armorPierce": 1, "tags": ["demo"], "description": "Фиксированные 2 Поверхностных, игнорирует 1 пункт Защиты. Показывает, что модуль может вводить любой тип урона." }
-      ],
-      "weapons": [
-        { "id": "needler", "name": "Игольчатый карабин (пример)", "rating": 3, "weaponClass": "core:assault", "description": "Демонстрация базы стволов: Рейтинг +3, класс штурмовой винтовки." }
       ]
     }
   }
