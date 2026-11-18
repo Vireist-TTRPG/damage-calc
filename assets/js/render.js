@@ -1,5 +1,6 @@
 /* IRREALITY · рендер. Пульт, детали, результат, журнал, справочник.
-   Справочник: карточки и таблицы, переключатель вида запоминается. */
+   v3.2: крупные итоги пулов, группы атрибутов/навыков в селектах,
+   журнал — числа в контейнере .li-nums (кнопки не перекрывают значения). */
 (function () {
     'use strict';
     const $ = id => document.getElementById(id);
@@ -161,11 +162,15 @@
         FULL_TABS.forEach(t => { const pane = $('pane-' + t[0]); if (pane) pane.hidden = state.detailTab !== t[0]; });
     }
 
+    /* Селект компонента пула: группы «Атрибуты · Физические» и т.д. */
     function poolOptions(ctx, row) {
-        const grp = (label, arr) => arr.length
-            ? '<optgroup label="' + esc(label) + '">' + arr.map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join('') + '</optgroup>'
-            : '';
-        let html = grp('Атрибуты', ctx.attributes) + grp('Навыки', ctx.skills);
+        const opt = n => '<option value="' + esc(n) + '">' + esc(n) + '</option>';
+        const grp = (prefix, groups, flat) => {
+            if (groups && groups.length) return groups.map(g =>
+                '<optgroup label="' + esc(prefix + ' · ' + g.label) + '">' + g.names.map(opt).join('') + '</optgroup>').join('');
+            return flat.length ? '<optgroup label="' + esc(prefix) + '">' + flat.map(opt).join('') + '</optgroup>' : '';
+        };
+        let html = grp('Атрибуты', ctx.attrGroups, ctx.attributes) + grp('Навыки', ctx.skillGroups, ctx.skills);
         const known = ctx.attributes.concat(ctx.skills);
         if (!row.custom && row.name && known.indexOf(row.name) < 0) html += '<optgroup label="Из модуля"><option value="' + esc(row.name) + '">' + esc(row.name) + '</option></optgroup>';
         html += '<optgroup label="Прочее"><option value="__custom">Своё название / модификатор…</option></optgroup>';
@@ -175,7 +180,8 @@
         [['attack', 'poolAttackRows', state.poolAttack], ['defense', 'poolDefenseRows', state.poolDefense]].forEach(([side, elId, rows]) => {
             const box = $(elId);
             if (!box) return;
-            const sig = side + '|' + rows.map(r => (r.custom ? '#' : r.name)).join(',') + '|' + ctx.attributes.length + ':' + ctx.skills.length;
+            const sig = side + '|' + rows.map(r => (r.custom ? '#' : r.name)).join(',') + '|' +
+                ctx.attributes.length + ':' + ctx.skills.length + ':' + (ctx.attrGroups || []).length + ':' + (ctx.skillGroups || []).length;
             if (box._sig !== sig) {
                 box.innerHTML = rows.map((r, i) =>
                     '<div class="prow">' +
@@ -326,7 +332,9 @@
         $('poolAttackTotal').textContent = pool.attack.total;
         $('poolDefenseTotal').textContent = pool.defense.total;
         const info = $('deckPoolInfo');
-        if (info) info.innerHTML = 'Пул <b>' + pool.attack.total + '</b> · защита <b>' + pool.defense.total + '</b>';
+        if (info) info.innerHTML =
+            '<span class="pi-blk a"><small>АТАКА</small><b>' + pool.attack.total + '</b></span>' +
+            '<span class="pi-blk d"><small>ЗАЩИТА</small><b>' + pool.defense.total + '</b></span>';
         const chip = p => '<span class="pm ' + (p.manual ? 'man' : p.value > 0 ? 'pos' : p.value < 0 ? 'neg' : '') + '">' + esc(p.label) + ' ' + sgn(p.value) + '</span>';
         $('poolRead').innerHTML =
             '<div class="pool-pill a' + (pool.attack.total <= 0 ? ' warn' : '') + '"><small>ИТОГО АТАКА</small><b>' + pool.attack.total + '</b><i>' + plural(pool.attack.total, 'кубик', 'кубика', 'кубиков') + '</i></div>' +
@@ -440,10 +448,12 @@
                 '<span class="drag-handle" draggable="true" data-drag-log="' + esc(e.id) + '" title="Перетащите, чтобы изменить порядок">' + ICON.grip + '</span>' +
                 '<span class="li-idx">' + (x.index + 1) + '</span>' +
                 '<span class="li-meta">' + badges + '</span>' +
+                '<span class="li-nums">' +
                 '<span class="li-cell agg"><small>УСУГ</small>' + E.num(r.hp.aggravated) + '</span>' +
                 '<span class="li-cell surf"><small>ПОВ</small>' + E.num(r.hp.surface) + '</span>' +
                 '<span class="li-cell steel"><small>ИЗНОС</small>' + (r.wear.total ? '−' + r.wear.total : '0') + '</span>' +
-                '<span class="li-cell hide-m"><small>ОСТАТОК</small>' + (r.armored ? r.integrityAfter + '/' + r.integrityMax : '—') + '</span>' +
+                '<span class="li-cell rem"><small>ОСТАТОК</small>' + (r.armored ? r.integrityAfter + '/' + r.integrityMax : '—') + '</span>' +
+                '</span>' +
                 '<span class="li-acts">' +
                 '<button class="icon-btn adv" data-act="log-up" data-id="' + esc(e.id) + '" title="Выше">' + ICON.up + '</button>' +
                 '<button class="icon-btn adv" data-act="log-down" data-id="' + esc(e.id) + '" title="Ниже">' + ICON.down + '</button>' +
@@ -457,7 +467,7 @@
     }
 
     /* ============================================================
-       СПРАВОЧНИК · карточки + таблицы
+       СПРАВОЧНИК · карточки (кладка) + таблицы
        ============================================================ */
     const TABS = [['plates', 'ПЛАСТИНЫ'], ['ammo', 'ПАТРОНЫ'], ['carriers', 'НОСИТЕЛИ'], ['dist', 'ДИСТАНЦИИ'], ['modes', 'РЕЖИМЫ'], ['rules', 'ПРАВИЛА'], ['weapons', 'ОРУЖИЕ']];
     const CARD_TABS = ['plates', 'ammo', 'modes', 'weapons'];
@@ -522,7 +532,6 @@
         const asTable = refView === 'table' && CARD_TABS.indexOf(tab) >= 0;
         let html = '';
 
-        /* ---------- ПЛАСТИНЫ ---------- */
         if (tab === 'plates') {
             const items = Object.keys(ctx.plates).map(k => ctx.plates[k]).filter(p => match(p.code, p.name, p.notes, (p.passive && p.passive.text) || ''));
             const note = 'Защита вычитается из итогового урона. Поглощённая часть делится на делитель ядра (округление — по пластине) и вычитается из Целостности один раз за обстрел. При Целостности 0 пластина ломается и теряет часть Защиты, но продолжает поглощать.';
@@ -555,7 +564,6 @@
             }
         }
 
-        /* ---------- ПАТРОНЫ ---------- */
         if (tab === 'ammo') {
             const items = Object.keys(ctx.ammo).map(k => ctx.ammo[k]).filter(a => match(a.code, a.name, a.description, (a.tags || []).join(' ')));
             const note = 'Весь огнестрел ядра наносит Усугублённый урон. Поверхностный появляется только по спецправилам патронов и режимов. Модификаторы попадания — это кубики к пулу, а не готовые успехи.';
@@ -583,7 +591,6 @@
             }
         }
 
-        /* ---------- НОСИТЕЛИ ---------- */
         if (tab === 'carriers') {
             const items = Object.keys(ctx.carriers).map(k => ctx.carriers[k]).filter(c => match(c.name, (c.passive && c.passive.text) || ''));
             const note = 'Носитель определяет, какие пластины можно установить. Вместимость из ранних документов не используется. Пассивные штрафы носителя учитываются в пуле защиты.';
@@ -594,7 +601,6 @@
                 : topline(note, tab) + '<div class="ref-empty">Ничего не найдено.</div>';
         }
 
-        /* ---------- ДИСТАНЦИИ ---------- */
         if (tab === 'dist') {
             const items = Object.keys(ctx.classes).map(k => ctx.classes[k]).filter(c => match(c.name, c.note));
             const note = 'Тип оружия задаётся без калибра: калибр и баллистика живут в патроне. Штрафы применяются к пулу до броска. Урон дроби (5 / 4 / 2) подставляется в Рейтинг автоматически.';
@@ -612,7 +618,6 @@
                 : topline(note, tab) + '<div class="ref-empty">Ничего не найдено.</div>';
         }
 
-        /* ---------- РЕЖИМЫ ---------- */
         if (tab === 'modes') {
             const items = Object.keys(ctx.modes).map(k => ctx.modes[k]).filter(m => match(m.name, m.code, m.note));
             const note = 'Режим не умножает урон и износ: один обстрел — один расчёт и одно списание Целостности. Режим влияет на пул, расход патронов и побочные эффекты.';
@@ -629,7 +634,6 @@
             }
         }
 
-        /* ---------- ПРАВИЛА ---------- */
         if (tab === 'rules') {
             const items = ctx.ruleDefs.filter(r => match(r.label, r.hint, r.key));
             const note = 'Текущие значения правил. Изменяются во вкладке «Правила» — расчёт обновляется сразу.';
@@ -643,7 +647,6 @@
                 : topline(note, tab) + '<div class="ref-empty">Ничего не найдено.</div>';
         }
 
-        /* ---------- ОРУЖИЕ ---------- */
         if (tab === 'weapons') {
             const items = Object.keys(ctx.weapons).map(k => ctx.weapons[k]).filter(w => match(w.name, w.description));
             const note = 'База стволов из подключённых модулей. Рейтинг подставляется в расчёт, класс задаёт таблицу дистанций.';
