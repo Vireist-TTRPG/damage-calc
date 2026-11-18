@@ -136,11 +136,11 @@
       <div class="deck-foot">
         <div class="margin-read" id="marginRead"></div>
         <span class="pool-info adv" id="deckPoolInfo"></span>
-        <button type="button" class="btn adv" data-act="roll" data-pool="both" title="Бросить оба пула и применить успехи">
+        <button type="button" class="btn adv" id="deckRollBtn" data-act="roll" data-pool="both" title="Бросить оба пула и применить успехи">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/></svg>
           Бросить
         </button>
-        <button type="button" class="btn ghost adv" data-act="deck-pool" id="deckPoolBtn" title="Открыть конструктор пула">Пул…</button>
+        <button type="button" class="btn ghost adv" data-act="deck-pool" id="deckPoolBtn" title="Открыть вкладку пула">Пул…</button>
         <button type="button" class="btn primary" data-act="log-add" title="Зафиксировать обстрел в журнале — Целостность перейдёт дальше">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           Обстрел в журнал
@@ -255,33 +255,42 @@
         </div>
 
         <div class="dpane adv" id="pane-pool" role="tabpanel" hidden>
-          <div class="pane-head">Конструктор пула<small>любые атрибуты и навыки</small></div>
-          <div class="pool-side">
-            <div class="ps-head"><i class="a"></i>ПУЛ АТАКИ<b id="poolAttackTotal">0</b></div>
-            <div class="prows" id="poolAttackRows"></div>
-            <div class="ps-tools">
-              <button type="button" class="btn tiny" data-act="pool-add" data-side="attack">+ компонент</button>
-              <button type="button" class="btn tiny ghost" data-act="pool-preset" data-side="attack" data-preset="0">Меткость + Ловкость</button>
-              <button type="button" class="btn tiny ghost" data-act="pool-preset" data-side="attack" data-preset="1">Меткость + Смекалка</button>
+          <div class="pane-head">Пул кубов<small>два режима</small></div>
+          <div class="seg seg-2 tall pool-mode" id="poolModeSeg" role="group" aria-label="Режим пула">
+            <button type="button" data-act="pool-mode" data-value="build">КОНСТРУКТОР<small>собрать пул и бросить здесь</small></button>
+            <button type="button" data-act="pool-mode" data-value="digest">МОДИФИКАТОРЫ<small>что ± к пулу, если бросаете на столе</small></button>
+          </div>
+
+          <div id="poolBuild">
+            <div class="pool-side">
+              <div class="ps-head"><i class="a"></i>ПУЛ АТАКИ<b id="poolAttackTotal">0</b></div>
+              <div class="prows" id="poolAttackRows"></div>
+              <div class="ps-tools">
+                <button type="button" class="btn tiny" data-act="pool-add" data-side="attack">+ компонент</button>
+                <button type="button" class="btn tiny ghost" data-act="pool-preset" data-side="attack" data-preset="0">Меткость + Ловкость</button>
+                <button type="button" class="btn tiny ghost" data-act="pool-preset" data-side="attack" data-preset="1">Меткость + Смекалка</button>
+              </div>
             </div>
-          </div>
-          <div class="pool-side">
-            <div class="ps-head"><i class="d"></i>ПУЛ ЗАЩИТЫ<b id="poolDefenseTotal">0</b></div>
-            <div class="prows" id="poolDefenseRows"></div>
-            <div class="ps-tools">
-              <button type="button" class="btn tiny" data-act="pool-add" data-side="defense">+ компонент</button>
-              <button type="button" class="btn tiny ghost" data-act="pool-preset" data-side="defense" data-preset="0">Ловкость + Атлетика</button>
-              <button type="button" class="btn tiny ghost" data-act="pool-preset" data-side="defense" data-preset="1">Выносливость + Атлетика</button>
+            <div class="pool-side">
+              <div class="ps-head"><i class="d"></i>ПУЛ ЗАЩИТЫ<b id="poolDefenseTotal">0</b></div>
+              <div class="prows" id="poolDefenseRows"></div>
+              <div class="ps-tools">
+                <button type="button" class="btn tiny" data-act="pool-add" data-side="defense">+ компонент</button>
+                <button type="button" class="btn tiny ghost" data-act="pool-preset" data-side="defense" data-preset="0">Ловкость + Атлетика</button>
+                <button type="button" class="btn tiny ghost" data-act="pool-preset" data-side="defense" data-preset="1">Выносливость + Атлетика</button>
+              </div>
             </div>
+            <div class="pool-read" id="poolRead"></div>
+            <div class="pool-actions">
+              <button type="button" class="btn primary" data-act="roll" data-pool="both">Бросить оба</button>
+              <button type="button" class="btn" data-act="roll" data-pool="attack">Атака</button>
+              <button type="button" class="btn" data-act="roll" data-pool="defense">Защита</button>
+              <label class="check"><input type="checkbox" id="autoApply" data-key="autoApply" checked><span>Применять успехи</span></label>
+            </div>
+            <div class="dice-trays" id="diceTrays"></div>
           </div>
-          <div class="pool-read" id="poolRead"></div>
-          <div class="pool-actions">
-            <button type="button" class="btn primary" data-act="roll" data-pool="both">Бросить оба</button>
-            <button type="button" class="btn" data-act="roll" data-pool="attack">Атака</button>
-            <button type="button" class="btn" data-act="roll" data-pool="defense">Защита</button>
-            <label class="check"><input type="checkbox" id="autoApply" data-key="autoApply" checked><span>Применять успехи</span></label>
-          </div>
-          <div class="dice-trays" id="diceTrays"></div>
+
+          <div id="poolDigest" hidden></div>
         </div>
       </aside>
 
@@ -375,7 +384,7 @@
           <tr><td><code>id</code>, <code>namespace</code></td><td>Уникальные. Пространство имён даёт идентификаторы вида <code>iso:sarcophagus</code> и защищает от конфликтов.</td></tr>
           <tr><td><code>kind</code></td><td><code>core</code> — ядро (нельзя выключить), <code>module</code> — обычный модуль.</td></tr>
           <tr><td><code>requires</code></td><td>Массив id обязательных зависимостей. Без них модуль не включится.</td></tr>
-          <tr><td><code>attributes</code>, <code>skills</code></td><td>Словари конструктора пула. Модуль может добавить свои — они появятся в выпадающих списках.</td></tr>
+          <tr><td><code>attributes</code>, <code>skills</code></td><td>Словари конструктора пула: группы <code>{group, names}</code> или строки.</td></tr>
           <tr><td><code>damageTypes</code></td><td>Типы урона: <code>id</code>, <code>label</code>, <code>short</code>, <code>tone</code>.</td></tr>
           <tr><td><code>plates</code></td><td><code>defense</code>, <code>integrity</code>, <code>rounding</code>, <code>breakPenalty</code>, <code>firstShot</code>, <code>passive</code>, <code>effects</code>.</td></tr>
           <tr><td><code>carriers</code>, <code>carrierExtensions</code></td><td>Носители и расширение чужих носителей: <code>target</code>, <code>addPlates</code>.</td></tr>
@@ -407,7 +416,7 @@
   <small>Все вычисления выполняются локально в браузере. Параметры, тема, режим интерфейса и серия обстрелов сохраняются между сессиями.</small>
 </footer>
 
-<!-- ===== КАРМАННЫЙ ДОК (мобильные) ===== -->
+<!-- ===== КАРМАННЫЙ ДОК ===== -->
 <div class="dock" id="dock">
   <div class="dock-cell">
     <small>АТАКА</small>

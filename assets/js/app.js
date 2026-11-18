@@ -1,4 +1,4 @@
-/* IRREALITY · состояние, события, оркестрация. Пульт v3. */
+/* IRREALITY · состояние, события, оркестрация. Пульт v3.4. */
 (function () {
     'use strict';
     const E = window.IREngine, M = window.IRModules, R = window.IRRender;
@@ -7,7 +7,7 @@
     const POOL_MIN = -5, POOL_MAX = 12;
 
     const DEFAULTS = {
-        configured: false, uiMode: 'simple', theme: 'dark', detailTab: 'ammo',
+        configured: false, uiMode: 'simple', theme: 'dark', detailTab: 'ammo', poolMode: 'build',
         enabled: ['irreality-core', 'isotope-tier'], order: [], ruleValues: {},
         attack: 5, defense: 2, rating: 4,
         poolAttack: [{ name: 'Меткость', value: 4, custom: false }, { name: 'Ловкость', value: 3, custom: false }],
@@ -40,6 +40,7 @@
             if (['simple', 'full'].indexOf(s.uiMode) < 0) s.uiMode = 'simple';
             if (['dark', 'light'].indexOf(s.theme) < 0) s.theme = 'dark';
             if (['ammo', 'armor', 'fire', 'rules', 'pool'].indexOf(s.detailTab) < 0) s.detailTab = 'ammo';
+            if (['build', 'digest'].indexOf(s.poolMode) < 0) s.poolMode = 'build';
             return s;
         } catch (e) { fresh = true; return JSON.parse(JSON.stringify(DEFAULTS)); }
     }
@@ -58,6 +59,7 @@
             modeId: s.modeId, aimTurns: s.aimTurns, headshot: s.headshot,
             ammoId: s.ammoId, carrierId: s.carrierId, plateId: s.plateId,
             coverId: s.coverId, firstShotMode: s.firstShotMode,
+            integrity: s.integrityStart,
             diceOnes: E.diceOnes(s.dice.attack)
         };
     }
@@ -116,7 +118,7 @@
         R.syncInputs(state, ctx);
         const inp = inputOf(state);
         R.renderDetails(state, ctx, inp);
-        R.renderPool(state, E.computePool(inp, ctx));
+        R.renderPool(state, E.computePool(inp, ctx), ctx, inp);
         R.renderResults(state, series.pending, ctx);
         R.renderLog(state, series, ctx);
         measureDeck();
@@ -153,11 +155,18 @@
         const poolTxt = rows => rows.map(r => (r.name || 'компонент') + ' ' + r.value).join(' + ') || '—';
         const L = ['# IRREALITY · отчёт по огнестрелу', ''];
         L.push('Модули: ' + ctx.modules.map(m => m.name + ' (' + m.namespace + ' v' + (m.version || '1.0.0') + ')').join(' → '));
-        L.push('Интерфейс: ' + (state.uiMode === 'simple' ? 'простой' : 'полный') + ' · тема: ' + (state.theme === 'light' ? 'светлая' : 'тёмная'));
+        L.push('Интерфейс: ' + (state.uiMode === 'simple' ? 'простой' : 'полный') + ' · тема: ' + (state.theme === 'light' ? 'светлая' : 'тёмная') + ' · пул: ' + (state.poolMode === 'digest' ? 'модификаторы' : 'конструктор'));
         L.push('', '## Параметры');
         L.push('- Бросок: атака ' + state.attack + ' − защита ' + state.defense);
-        L.push('- Пул атаки: ' + poolTxt(state.poolAttack));
-        L.push('- Пул защиты: ' + poolTxt(state.poolDefense));
+        if (state.poolMode === 'digest') {
+            const d = E.modifierDigest(inputOf(state), ctx);
+            const fmt = x => (x.v > 0 ? '+' + x.v : x.v < 0 ? '−' + Math.abs(x.v) : '0') + ' ' + (x.unit === 'succ' ? 'усп.' : 'куб.') + ' · ' + x.label + ' · ' + x.cond + (x.attrs && x.attrs.length ? ' [' + x.attrs.join(', ') + ']' : '');
+            L.push('- Модификаторы атаки: ' + (d.attack.map(fmt).join('; ') || 'нет'));
+            L.push('- Модификаторы защиты: ' + (d.defense.map(fmt).join('; ') || 'нет'));
+        } else {
+            L.push('- Пул атаки: ' + poolTxt(state.poolAttack));
+            L.push('- Пул защиты: ' + poolTxt(state.poolDefense));
+        }
         L.push('- Оружие: Рейтинг +' + s.pending.rating + ' · ' + ((ctx.classes[state.weaponClassId] || {}).name || '—') + ' · ' + state.distanceBand);
         L.push('- Режим: ' + ((ctx.modes[state.modeId] || {}).name || '—') + ' · патрон ' + ((ctx.ammo[state.ammoId] || {}).name || '—'));
         const p = ctx.plates[state.plateId];
@@ -278,6 +287,7 @@
 
     /* ---------- бросок ---------- */
     function roll(which) {
+        if (state.poolMode === 'digest') { toast('Режим «Модификаторы»: бросайте пул на столе, успехи вводите на пульте'); return; }
         const pool = E.computePool(inputOf(state), ctx);
         if (which === 'both' || which === 'attack') state.dice.attack = E.rollPool(pool.attack.total);
         if (which === 'both' || which === 'defense') state.dice.defense = E.rollPool(pool.defense.total);
@@ -348,6 +358,14 @@
             case 'detail-tab':
                 state.detailTab = el.dataset.tab;
                 refreshCalc(); break;
+            case 'pool-mode':
+                if (state.poolMode === el.dataset.value) break;
+                state.poolMode = el.dataset.value;
+                refreshCalc();
+                toast(state.poolMode === 'digest'
+                    ? 'Режим «Модификаторы»: калькулятор показывает, что ± к пулу на столе'
+                    : 'Режим «Конструктор»: соберите пул и бросьте здесь');
+                break;
             case 'deck-pool': {
                 state.detailTab = 'pool';
                 refreshCalc();
@@ -442,7 +460,7 @@
             }
             case 'reset': {
                 const snap = JSON.parse(JSON.stringify(state));
-                const keep = { enabled: state.enabled, order: state.order, ruleValues: state.ruleValues, configured: true, uiMode: state.uiMode, theme: state.theme };
+                const keep = { enabled: state.enabled, order: state.order, ruleValues: state.ruleValues, configured: true, uiMode: state.uiMode, theme: state.theme, poolMode: state.poolMode };
                 state = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), keep);
                 refreshAll();
                 toast('Параметры расчёта сброшены', () => { state = snap; refreshAll(); toast('Параметры восстановлены'); });

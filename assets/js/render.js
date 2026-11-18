@@ -1,6 +1,6 @@
 /* IRREALITY · рендер. Пульт, детали, результат, журнал, справочник.
-   v3.2: крупные итоги пулов, группы атрибутов/навыков в селектах,
-   журнал — числа в контейнере .li-nums (кнопки не перекрывают значения). */
+   v3.4: два режима пула (конструктор / модификаторы),
+   таблица пластин с широкой колонкой «Особенности». */
 (function () {
     'use strict';
     const $ = id => document.getElementById(id);
@@ -9,6 +9,7 @@
     const RM = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const plural = (n, a, b, c) => { const m = n % 100; if (m >= 11 && m <= 14) return c; const k = n % 10; return k === 1 ? a : k >= 2 && k <= 4 ? b : c; };
     const sgn = n => (n > 0 ? '+' + n : String(n));
+    const sgnM = n => (n > 0 ? '+' + n : n < 0 ? '−' + Math.abs(n) : '0');
     const RV_KEY = 'irreality.refview.v1';
 
     let refView = 'cards';
@@ -141,8 +142,34 @@
         setOptions($('d-cover'), coverHtml, state.coverId, 'cover:' + Object.keys(ctx.covers).join(','));
     }
 
-    /* ---------- детали ---------- */
+    /* ---------- детали: однострочная полоса вкладок ---------- */
     const FULL_TABS = [['ammo', 'ПАТРОН'], ['armor', 'БРОНЯ'], ['fire', 'ОБСТРЕЛ'], ['rules', 'ПРАВИЛА'], ['pool', 'ПУЛ']];
+
+    function bindTabKeys(bar) {
+        if (!bar || bar._keysBound) return;
+        bar._keysBound = true;
+        bar.addEventListener('keydown', ev => {
+            if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(ev.key) < 0) return;
+            const btns = Array.from(bar.querySelectorAll('[data-tab]'));
+            if (!btns.length) return;
+            let i = btns.findIndex(b => b === document.activeElement);
+            if (i < 0) i = btns.findIndex(b => b.getAttribute('aria-selected') === 'true');
+            if (i < 0) i = 0;
+            let next = i;
+            if (ev.key === 'ArrowLeft') next = (i - 1 + btns.length) % btns.length;
+            if (ev.key === 'ArrowRight') next = (i + 1) % btns.length;
+            if (ev.key === 'Home') next = 0;
+            if (ev.key === 'End') next = btns.length - 1;
+            ev.preventDefault();
+            const target = btns[next].dataset.tab;
+            btns[next].click();
+            requestAnimationFrame(() => {
+                const b = bar.querySelector('[data-tab="' + target + '"]');
+                if (b) { b.focus(); b.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+            });
+        });
+    }
+
     function renderDetails(state, ctx, input) {
         const tabs = state.uiMode === 'simple' ? FULL_TABS.slice(0, 2) : FULL_TABS;
         const pool = E.computePool(input, ctx);
@@ -150,19 +177,56 @@
         const armored = !!(carrier && carrier.plates.length && ctx.plates[state.plateId]);
         const p = armored ? ctx.plates[state.plateId] : null;
         const changed = ctx.ruleDefs.filter(r => String(ctx.rules[r.key]) !== String(r.default)).length;
-        const summary = {
-            ammo: (ctx.ammo[state.ammoId] || {}).code || '—',
-            armor: p ? p.code + ' ' + state.integrityStart + '/' + p.integrity : 'без брони',
-            fire: ((ctx.modes[state.modeId] || {}).code || '—') + ' · ' + ({ near: 'ближ', mid: 'сред', far: 'дал' }[state.distanceBand] || '—'),
-            rules: changed ? changed + ' изменено' : ctx.ruleDefs.length + ' правил',
-            pool: pool.attack.total + ' / ' + pool.defense.total + ' куб.'
+        const ammo = ctx.ammo[state.ammoId] || {};
+        const mode = ctx.modes[state.modeId] || {};
+        const bandShort = { near: 'ближ', mid: 'сред', far: 'дал' }[state.distanceBand] || '—';
+        const bandFull = { near: 'Ближняя', mid: 'Средняя', far: 'Дальняя' }[state.distanceBand] || '—';
+        const digest = state.poolMode === 'digest' ? E.modifierDigest(input, ctx) : null;
+
+        const meta = {
+            ammo: { v: ammo.code || '—', t: 'Патрон: ' + (ammo.name || '—') },
+            armor: {
+                v: p ? p.code + ' ' + state.integrityStart + '/' + p.integrity : 'нет',
+                t: p ? p.name + ' · Целостность ' + state.integrityStart + ' из ' + p.integrity : 'Броня не надета'
+            },
+            fire: { v: (mode.code || '—') + '·' + bandShort, t: 'Режим «' + (mode.name || '—') + '» · ' + bandFull + ' дистанция' },
+            rules: {
+                v: changed ? changed + ' изм.' : 'база',
+                t: changed ? 'Изменено правил: ' + changed + ' из ' + ctx.ruleDefs.length : 'Все ' + ctx.ruleDefs.length + ' правил по умолчанию'
+            },
+            pool: digest
+                ? { v: sgnM(digest.attackNet) + '/' + sgnM(digest.defenseNet), t: 'Модификаторы: атака ' + sgnM(digest.attackNet) + ' куб. · защита ' + sgnM(digest.defenseNet) + ' куб.' }
+                : { v: pool.attack.total + '/' + pool.defense.total, t: 'Пул атаки ' + pool.attack.total + ' · пул защиты ' + pool.defense.total }
         };
-        $('detailTabs').innerHTML = tabs.map(t =>
-            '<button role="tab" data-act="detail-tab" data-tab="' + t[0] + '" aria-selected="' + (state.detailTab === t[0]) + '"><b>' + t[1] + '</b><small>' + esc(summary[t[0]]) + '</small></button>').join('');
-        FULL_TABS.forEach(t => { const pane = $('pane-' + t[0]); if (pane) pane.hidden = state.detailTab !== t[0]; });
+
+        const bar = $('detailTabs');
+        const active = document.activeElement;
+        const keepFocus = active && bar.contains(active) ? active.dataset.tab : null;
+
+        bar.innerHTML = tabs.map(t => {
+            const id = t[0], on = state.detailTab === id, m = meta[id];
+            return '<button role="tab" id="dtab-' + id + '" aria-controls="pane-' + id + '" data-act="detail-tab" data-tab="' + id + '"' +
+                ' aria-selected="' + on + '" tabindex="' + (on ? 0 : -1) + '" title="' + esc(t[1] + ' — ' + m.t) + '">' +
+                '<b>' + t[1] + '</b><small>' + esc(m.v) + '</small></button>';
+        }).join('');
+
+        FULL_TABS.forEach(t => {
+            const pane = $('pane-' + t[0]);
+            if (!pane) return;
+            pane.hidden = state.detailTab !== t[0];
+            pane.setAttribute('aria-labelledby', 'dtab-' + t[0]);
+        });
+
+        if (keepFocus) {
+            const btn = bar.querySelector('[data-tab="' + keepFocus + '"]');
+            if (btn) btn.focus();
+        }
+        const sel = bar.querySelector('[aria-selected="true"]');
+        if (sel && bar.scrollWidth > bar.clientWidth) sel.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        bindTabKeys(bar);
     }
 
-    /* Селект компонента пула: группы «Атрибуты · Физические» и т.д. */
+    /* ---------- конструктор пула ---------- */
     function poolOptions(ctx, row) {
         const opt = n => '<option value="' + esc(n) + '">' + esc(n) + '</option>';
         const grp = (prefix, groups, flat) => {
@@ -328,13 +392,59 @@
         r.style.background = 'linear-gradient(to right, var(--steel) ' + pct + '%, var(--line) ' + pct + '%)';
     }
 
-    function renderPool(state, pool) {
+    /* ---------- пул: два режима ---------- */
+    function digRow(x) {
+        const cls = x.v > 0 ? 'pos' : x.v < 0 ? 'neg' : 'zero';
+        const unit = x.unit === 'succ' ? 'усп.' : 'куб.';
+        return '<div class="dig-row ' + cls + (x.active ? '' : ' off') + '">' +
+            '<span class="dig-val">' + sgnM(x.v) + '<small>' + unit + '</small></span>' +
+            '<span class="dig-body"><b>' + esc(x.label) + '</b><small>' + esc(x.cond) + '</small>' +
+            (x.attrs && x.attrs.length ? '<span class="dig-attrs">' + x.attrs.map(a => '<i>' + esc(a) + '</i>').join('') + '</span>' : '') +
+            '</span><span class="badge dim dig-src">' + esc(x.src) + '</span></div>';
+    }
+    function digGroup(title, dot, rows, net, succ) {
+        const head = '<div class="dig-head"><i class="' + dot + '"></i>' + title + '<b>' + sgnM(net) + ' куб.' + (succ ? ' · ' + sgnM(succ) + ' усп.' : '') + '</b></div>';
+        return '<div class="dig-group">' + head +
+            (rows.length ? rows.map(digRow).join('') : '<div class="dig-empty">Модификаторов нет — пул бросается как есть.</div>') + '</div>';
+    }
+    function renderDigest(state, ctx, inp) {
+        const d = E.modifierDigest(inp, ctx);
+        let html = digGroup('ПУЛ АТАКИ', 'a', d.attack, d.attackNet, d.attackSucc) +
+            digGroup('ПУЛ ЗАЩИТЫ', 'd', d.defense, d.defenseNet, d.defenseSucc);
+        if (d.notes.length) {
+            html += '<div class="dig-group"><div class="dig-head"><i class="n"></i>СПРАВОЧНО · НЕ К ПУЛУ</div>' +
+                d.notes.map(n => '<div class="dig-note ' + esc(n.tone) + '"><i></i><span>' + esc(n.text) + '</span></div>').join('') + '</div>';
+        }
+        html += '<p class="sub-note">Бросайте пул на столе по листу персонажа, применяя modifiers выше, и вводите готовые успехи на пульте. Успехи, введённые вручную, считаются финальными.</p>';
+        $('poolDigest').innerHTML = html.replace('modifiers', 'модификаторы');
+        return d;
+    }
+
+    function renderPool(state, pool, ctx, inp) {
+        const digestMode = state.poolMode === 'digest';
+        $('poolModeSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.value === state.poolMode));
+        $('poolBuild').hidden = digestMode;
+        $('poolDigest').hidden = !digestMode;
+        const rollBtn = $('deckRollBtn');
+        if (rollBtn) rollBtn.hidden = digestMode;
+
+        let d = null;
+        if (digestMode) d = renderDigest(state, ctx, inp);
+
         $('poolAttackTotal').textContent = pool.attack.total;
         $('poolDefenseTotal').textContent = pool.defense.total;
         const info = $('deckPoolInfo');
-        if (info) info.innerHTML =
-            '<span class="pi-blk a"><small>АТАКА</small><b>' + pool.attack.total + '</b></span>' +
-            '<span class="pi-blk d"><small>ЗАЩИТА</small><b>' + pool.defense.total + '</b></span>';
+        if (info) {
+            if (digestMode && d) {
+                info.innerHTML =
+                    '<span class="pi-blk a' + (d.attackNet === 0 ? ' zero' : '') + '" title="Суммарный модификатор пула атаки"><small>АТАКА · МОДИФ</small><b>' + sgnM(d.attackNet) + '</b></span>' +
+                    '<span class="pi-blk d' + (d.defenseNet === 0 ? ' zero' : '') + '" title="Суммарный модификатор пула защиты"><small>ЗАЩИТА · МОДИФ</small><b>' + sgnM(d.defenseNet) + '</b></span>';
+            } else {
+                info.innerHTML =
+                    '<span class="pi-blk a"><small>АТАКА</small><b>' + pool.attack.total + '</b></span>' +
+                    '<span class="pi-blk d"><small>ЗАЩИТА</small><b>' + pool.defense.total + '</b></span>';
+            }
+        }
         const chip = p => '<span class="pm ' + (p.manual ? 'man' : p.value > 0 ? 'pos' : p.value < 0 ? 'neg' : '') + '">' + esc(p.label) + ' ' + sgn(p.value) + '</span>';
         $('poolRead').innerHTML =
             '<div class="pool-pill a' + (pool.attack.total <= 0 ? ' warn' : '') + '"><small>ИТОГО АТАКА</small><b>' + pool.attack.total + '</b><i>' + plural(pool.attack.total, 'кубик', 'кубика', 'кубиков') + '</i></div>' +
@@ -344,9 +454,9 @@
             if (!arr || !arr.length) return '';
             const s = Math.max(0, E.diceSuccesses(arr) + (mod || 0));
             return '<div class="dice-tray"><div class="dt-head">' + title + '<b>' + s + ' ' + plural(s, 'успех', 'успеха', 'успехов') + (mod ? ' (' + sgn(mod) + ' пассив)' : '') + '</b></div><div class="dice">' +
-                arr.map((d, i) => '<span class="die ' + (d.crit ? 'c' : d.s ? 's' : d.one ? 'one' : '') + '" style="--i:' + i + '">' + d.v + '</span>').join('') + '</div></div>';
+                arr.map((dd, i) => '<span class="die ' + (dd.crit ? 'c' : dd.s ? 's' : dd.one ? 'one' : '') + '" style="--i:' + i + '">' + dd.v + '</span>').join('') + '</div></div>';
         };
-        $('diceTrays').innerHTML = tray('АТАКА', state.dice.attack, 0) + tray('ЗАЩИТА', state.dice.defense, pool.defense.successMod);
+        $('diceTrays').innerHTML = digestMode ? '' : tray('АТАКА', state.dice.attack, 0) + tray('ЗАЩИТА', state.dice.defense, pool.defense.successMod);
     }
 
     const traceHTML = steps => steps.map(s => '<li class="' + esc(s.tone || 'dim') + '"><span class="tl">' + esc(s.label) + '</span><span class="te">' + esc(s.expr) + '</span></li>').join('');
@@ -467,7 +577,7 @@
     }
 
     /* ============================================================
-       СПРАВОЧНИК · карточки (кладка) + таблицы
+       СПРАВОЧНИК
        ============================================================ */
     const TABS = [['plates', 'ПЛАСТИНЫ'], ['ammo', 'ПАТРОНЫ'], ['carriers', 'НОСИТЕЛИ'], ['dist', 'ДИСТАНЦИИ'], ['modes', 'РЕЖИМЫ'], ['rules', 'ПРАВИЛА'], ['weapons', 'ОРУЖИЕ']];
     const CARD_TABS = ['plates', 'ammo', 'modes', 'weapons'];
@@ -514,8 +624,9 @@
             '</div>';
     }
     const topline = (note, tab) => '<div class="ref-topline"><p class="ref-note">' + note + '</p>' + viewSwitch(tab) + '</div>';
-    const tableWrap = (head, rows, wide) => '<div class="table-wrap"><table class="ref' + (wide ? ' wide' : '') + '"><thead><tr>' +
-        head.map(h => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
+    const tableWrap = (head, rows, wide, extraClass, colWidths) => '<div class="table-wrap"><table class="ref' + (wide ? ' wide' : '') + (extraClass ? ' ' + extraClass : '') + '">' +
+        (colWidths ? '<colgroup>' + colWidths.map(w => '<col style="width:' + w + '%">').join('') + '</colgroup>' : '') +
+        '<thead><tr>' + head.map(h => '<th' + (h.indexOf('Особенности') === 0 ? ' class="h-features"' : '') + '>' + h + '</th>').join('') + '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
 
     function renderReference(ctx, tab, query) {
         lastRef = { ctx, tab, query };
@@ -540,15 +651,18 @@
                 html = topline(note, tab) + tableWrap(
                     ['Код', 'Пластина', 'Защ / Цел', 'Первая пуля', 'Округление', 'Поломка', 'Особенности', 'Носители', 'Источник'],
                     items.map(p => {
-                        const feats = plateEffects(ctx, p).concat(p.passive && p.passive.text ? [esc(p.passive.text)] : []).concat(p.notes ? [esc(p.notes)] : []);
+                        const feats = plateEffects(ctx, p)
+                            .concat(p.passive && p.passive.text ? ['<b>Пассивная</b>: ' + esc(p.passive.text)] : [])
+                            .concat(p.brokenNote ? ['<b>При поломке</b>: ' + esc(p.brokenNote)] : [])
+                            .concat(p.notes ? [esc(p.notes)] : []);
                         return '<tr><td class="code">' + esc(p.code) + '</td><td>' + esc(p.name) + '<small>' + esc(p.uid) + '</small></td>' +
                             '<td class="num"><span class="sp"><b class="d">' + p.defense + '</b><em>/</em><b class="i">' + p.integrity + '</b></span></td>' +
                             '<td>' + esc(firstShotText(p)) + '</td><td>' + esc(roundingText(ctx, p)) + '</td>' +
-                            '<td class="num">−' + p.breakPenalty + (p.brokenNote ? '<small>' + esc(p.brokenNote) + '</small>' : '') + '</td>' +
-                            '<td>' + (feats.join('<br>') || '—') + '</td>' +
+                            '<td class="num">−' + p.breakPenalty + '</td>' +
+                            '<td class="features">' + (feats.join('<br>') || '—') + '</td>' +
                             '<td>' + (plateCarriers(ctx, p).map(esc).join(', ') || '—') + '</td>' +
                             '<td>' + srcBadge(p.module) + '</td></tr>';
-                    }), true);
+                    }), true, 'plates', [5, 13, 7, 11, 9, 6, 31, 11, 7]);
             } else {
                 html = topline(note, tab) + '<div class="ref-grid">' + items.map((p, i) => {
                     const eff = plateEffects(ctx, p).join('<br>');

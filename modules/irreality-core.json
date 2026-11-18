@@ -75,7 +75,7 @@
   "ammo": [
     { "id": "fmj", "code": "FMJ", "name": "Оболочечный", "damageType": "aggravated", "tags": ["ballistic"], "description": "Обычный патрон. Без модификаторов." },
     { "id": "jhp", "code": "JHP", "name": "Экспансивный", "damageType": "aggravated", "damageBonus": 1, "attackDice": -1, "tags": ["ballistic"], "description": "+1 к урону; −1 кубик к попаданию против брони/укрытия. Раскрывается в теле, но вязнет в пластинах." },
-    { "id": "ap", "code": "AP", "name": "Бронебойный", "damageType": "aggravated", "attackDice": 1, "tags": ["ballistic"], "description": "+1 кубик к попаданию против брони/укрытия." },
+    { "id": "ap", "code": "AP", "name": "Бронебойный", "damageType": "aggravated", "damageBonus": -1, "attackDice": 1, "tags": ["ballistic"], "description": "+1 кубик к попаданию против брони/укрытия. -1 урон." },
     { "id": "shot", "code": "ДР", "name": "Дробь", "damageType": "aggravated", "damageVsArmor": -2, "ignoreWearDivision": true, "tags": ["ballistic", "shot"], "description": "−2 к урону против брони. Весь поглощённый бронёй урон не режется вдвое — сноп дроби выгрызает пластину целиком." }
   ]
 }

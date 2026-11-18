@@ -1,6 +1,6 @@
 /* IRREALITY · движок расчёта. Чистые функции, без DOM.
-   v3.2: словари атрибутов/навыков поддерживают группы
-   ({group, names}) и плоские строки — совместимо со старыми модулями. */
+   v3.4: modifierDigest — ситуативные модификаторы пула с указанием
+   атрибутов/навыков, к которым они относятся (режим «Модификаторы»). */
 (function () {
     'use strict';
     const ROUND = { floor: Math.floor, round: Math.round, ceil: Math.ceil };
@@ -125,6 +125,74 @@
             attack: { parts: a, total: Math.max(0, sum(a)) },
             defense: { parts: d, total: Math.max(0, sum(d)), successMod: defSuccessMod },
             untargetable: !!(cover && cover.untargetable)
+        };
+    }
+
+    /* ---------- дайджест модификаторов (режим «Модификаторы») ----------
+       Ничего не собирает и не бросает: только показывает, сколько кубов
+       или успехов отнять/прибавить и каких атрибутов/навыков это касается. */
+    function modifierDigest(inp, ctx) {
+        const cls = ctx.classes[inp.weaponClassId] || null;
+        const band = cls && cls.bands ? cls.bands[inp.distanceBand] : null;
+        const mode = ctx.modes[inp.modeId] || null;
+        const ammo = ctx.ammo[inp.ammoId] || null;
+        const cover = ctx.covers[inp.coverId] || null;
+        const plate = inp.plateId ? ctx.plates[inp.plateId] : null;
+        const carrier = ctx.carriers[inp.carrierId] || null;
+        const armored = !!(plate && carrier && (carrier.plates || []).indexOf(plate.uid) >= 0);
+        const A = [], D = [], N = [];
+        const push = (arr, o) => arr.push(Object.assign({ unit: 'dice', attrs: [], active: true }, o));
+
+        if (band && num(band.dice)) push(A, { v: num(band.dice), src: 'ДИСТАНЦИЯ', label: cls.name + ' · ' + band.label, cond: 'к любому пулу атаки' });
+        if (mode) {
+            let mod = num(mode.poolMod);
+            if (mode.poolModByCategory && cls) {
+                const by = mode.poolModByCategory;
+                mod = by[cls.category] !== undefined ? num(by[cls.category]) : num(by.default || 0);
+            }
+            if (mod) push(A, { v: mod, src: 'РЕЖИМ', label: mode.name, cond: 'к любому пулу атаки' });
+            if (mode.aim && num(inp.aimTurns) > 0) {
+                const t = Math.min(num(inp.aimTurns), mode.aim.max);
+                push(A, { v: t * num(mode.aim.perTurn), src: 'РЕЖИМ', label: 'Прицеливание · ' + t + ' ход(а)', cond: 'к любому пулу атаки' });
+            }
+            if (mode.headshot && inp.headshot) {
+                push(A, { v: num(mode.headshot.dice), src: 'РЕЖИМ', label: 'Прицел в голову', cond: 'к любому пулу атаки' });
+                N.push({ tone: 'surf', text: 'Прицел в голову: +' + mode.headshot.damage + ' к итоговому урону.' });
+            }
+            if (mode.damageBonus) N.push({ tone: 'surf', text: 'Режим «' + mode.name + '»: +' + mode.damageBonus + ' к итоговому урону.' });
+            if (mode.ricochet) N.push({ tone: 'warn', text: 'Стрельба вслепую: за каждую выпавшую «1» — рикошет по случайной цели в 10 м (половина Рейтинга урона).' });
+            if (mode.area) N.push({ tone: 'warn', text: 'Подавление: ' + mode.area + ' — задевает всех, включая союзников. ' + (mode.selfPenalty || '') });
+            if (mode.shooterCover) N.push({ tone: 'info', text: 'Стрельба вслепую: ' + mode.shooterCover + '.' });
+        }
+        if (ammo && num(ammo.attackDice)) {
+            const active = armored || !!(cover && num(cover.dice));
+            push(A, {
+                v: num(ammo.attackDice), src: 'ПАТРОН', label: ammo.code + ' · ' + ammo.name,
+                cond: active ? 'к пулу атаки против брони/укрытия цели' : 'против брони/укрытия — сейчас не применяется (цель открыта)',
+                active
+            });
+        }
+        if (cover && num(cover.dice)) push(D, { v: num(cover.dice), src: 'УКРЫТИЕ', label: cover.name, cond: 'к пулу защиты' });
+        if (cover && cover.untargetable) N.push({ tone: 'warn', text: 'Полное укрытие: цель недоступна для атаки.' });
+
+        const passive = (obj, srcName) => {
+            if (!obj || !obj.passive) return;
+            const m = obj.passive.mods || {};
+            if (num(m.agilityDice)) push(D, { v: num(m.agilityDice), src: srcName, label: obj.passive.text || '', cond: 'если в пуле защиты используется Ловкость', attrs: ['Ловкость'] });
+            if (num(m.agilitySuccesses)) push(D, { v: num(m.agilitySuccesses), unit: 'succ', src: srcName, label: obj.passive.text || '', cond: 'если используются Ловкость или Реакция', attrs: ['Ловкость', 'Реакция'] });
+            if (!num(m.agilityDice) && !num(m.agilitySuccesses) && obj.passive.text) N.push({ tone: 'warn', text: srcName + ': ' + obj.passive.text });
+        };
+        if (carrier) passive(carrier, carrier.name);
+        if (armored) {
+            passive(plate, 'Пластина ' + plate.code);
+            (plate.effects || []).forEach(e => { if (e.type === 'note') N.push({ tone: 'info', text: plate.code + ': ' + e.text }); });
+            if (plate.brokenNote && num(inp.integrity) <= 0) N.push({ tone: 'danger', text: plate.brokenNote });
+        }
+        const sum = (arr, unit) => arr.filter(x => x.active && x.unit === unit).reduce((s, x) => s + x.v, 0);
+        return {
+            attack: A, defense: D, notes: N,
+            attackNet: sum(A, 'dice'), defenseNet: sum(D, 'dice'),
+            attackSucc: sum(A, 'succ'), defenseSucc: sum(D, 'succ')
         };
     }
 
@@ -435,7 +503,7 @@
     }
 
     window.IREngine = {
-        clamp, num, buildContext, computePool, computeAttack, computeSeries,
+        clamp, num, buildContext, computePool, modifierDigest, computeAttack, computeSeries,
         rollPool, diceSuccesses, diceOnes, typeShort, typeLabel, ROUND
     };
 })();
